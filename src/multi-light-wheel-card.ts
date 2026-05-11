@@ -20,6 +20,18 @@ interface Marker {
   state: string;
 }
 
+interface MarkerGroup {
+  id: string;
+  markers: Marker[];
+  entityIds: string[];
+  x: number;
+  y: number;
+  hue: number;
+  saturation: number;
+  color: string;
+  count: number;
+}
+
 @customElement("multi-light-wheel-card")
 export class MultiLightWheelCard extends LitElement {
   @property({ attribute: false }) public hass!: HomeAssistant;
@@ -31,6 +43,7 @@ export class MultiLightWheelCard extends LitElement {
   private readonly wheelSize = 260;
   private readonly wheelRadius = 120;
   private readonly center = 130;
+  private readonly groupDistancePx = 38;
 
   public setConfig(config: MultiLightWheelCardConfig): void {
     if (!config.entities || !Array.isArray(config.entities)) {
@@ -56,12 +69,14 @@ export class MultiLightWheelCard extends LitElement {
     this.markers = this.config.entities
       .map((entityId) => {
         const stateObj = this.hass.states[entityId];
+
         if (!stateObj) return null;
 
         const hs = stateObj.attributes.hs_color ?? [0, 0];
         const hue = Number(hs[0] ?? 0);
         const saturation = Number(hs[1] ?? 0);
         const brightness = Number(stateObj.attributes.brightness ?? 0);
+
         const { x, y } = this.hsToPosition(hue, saturation);
 
         return {
@@ -102,8 +117,13 @@ export class MultiLightWheelCard extends LitElement {
 
     let hue = (Math.atan2(y, x) * 180) / Math.PI + 90;
 
-    if (hue < 0) hue += 360;
-    if (hue >= 360) hue -= 360;
+    if (hue < 0) {
+      hue += 360;
+    }
+
+    if (hue >= 360) {
+      hue -= 360;
+    }
 
     return {
       hue: Math.round(hue),
@@ -111,9 +131,71 @@ export class MultiLightWheelCard extends LitElement {
     };
   }
 
-  private updateMarkerLocally(entityId: string, hue: number, saturation: number): void {
+  private getMarkerGroups(): MarkerGroup[] {
+    const groups: MarkerGroup[] = [];
+
+    for (const marker of this.markers) {
+      const existingGroup = groups.find((group) => {
+        const dx = group.x - marker.x;
+        const dy = group.y - marker.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        return distance <= this.groupDistancePx;
+      });
+
+      if (existingGroup) {
+        existingGroup.markers.push(marker);
+        existingGroup.entityIds.push(marker.entityId);
+        existingGroup.count = existingGroup.markers.length;
+
+        existingGroup.x =
+          existingGroup.markers.reduce((sum, item) => sum + item.x, 0) /
+          existingGroup.count;
+
+        existingGroup.y =
+          existingGroup.markers.reduce((sum, item) => sum + item.y, 0) /
+          existingGroup.count;
+
+        existingGroup.hue =
+          existingGroup.markers.reduce((sum, item) => sum + item.hue, 0) /
+          existingGroup.count;
+
+        existingGroup.saturation =
+          existingGroup.markers.reduce((sum, item) => sum + item.saturation, 0) /
+          existingGroup.count;
+
+        existingGroup.color = `hsl(${existingGroup.hue}, ${existingGroup.saturation}%, 50%)`;
+      } else {
+        groups.push({
+          id: marker.entityId,
+          markers: [marker],
+          entityIds: [marker.entityId],
+          x: marker.x,
+          y: marker.y,
+          hue: marker.hue,
+          saturation: marker.saturation,
+          color: marker.color,
+          count: 1,
+        });
+      }
+    }
+
+    return groups;
+  }
+
+  private isGroupActive(group: MarkerGroup): boolean {
+    if (!this.activeEntityId) return false;
+
+    return group.entityIds.includes(this.activeEntityId);
+  }
+
+  private updateMarkersLocally(
+    entityIds: string[],
+    hue: number,
+    saturation: number
+  ): void {
     this.markers = this.markers.map((marker) => {
-      if (marker.entityId !== entityId) return marker;
+      if (!entityIds.includes(marker.entityId)) return marker;
 
       const position = this.hsToPosition(hue, saturation);
 
@@ -124,13 +206,18 @@ export class MultiLightWheelCard extends LitElement {
         x: position.x,
         y: position.y,
         color: `hsl(${hue}, ${saturation}%, 50%)`,
+        state: "on",
       };
     });
   }
 
-  private async setLightColor(entityId: string, hue: number, saturation: number): Promise<void> {
+  private async setLightColor(
+    entityIds: string[],
+    hue: number,
+    saturation: number
+  ): Promise<void> {
     await this.hass.callService("light", "turn_on", {
-      entity_id: entityId,
+      entity_id: entityIds,
       hs_color: [hue, saturation],
     });
   }
@@ -141,13 +228,14 @@ export class MultiLightWheelCard extends LitElement {
     });
   }
 
-  private onMarkerPointerDown(event: PointerEvent, marker: Marker): void {
+  private onMarkerGroupPointerDown(event: PointerEvent, group: MarkerGroup): void {
     event.preventDefault();
     event.stopPropagation();
 
-    this.activeEntityId = marker.entityId;
+    this.activeEntityId = group.entityIds[0];
 
     const wheel = this.shadowRoot?.querySelector(".wheel") as HTMLElement | null;
+
     if (!wheel) return;
 
     const rect = wheel.getBoundingClientRect();
@@ -159,7 +247,7 @@ export class MultiLightWheelCard extends LitElement {
         rect
       );
 
-      this.updateMarkerLocally(marker.entityId, hue, saturation);
+      this.updateMarkersLocally(group.entityIds, hue, saturation);
     };
 
     const up = async (upEvent: PointerEvent) => {
@@ -172,8 +260,8 @@ export class MultiLightWheelCard extends LitElement {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
 
-      this.updateMarkerLocally(marker.entityId, hue, saturation);
-      await this.setLightColor(marker.entityId, hue, saturation);
+      this.updateMarkersLocally(group.entityIds, hue, saturation);
+      await this.setLightColor(group.entityIds, hue, saturation);
     };
 
     window.addEventListener("pointermove", move);
@@ -191,25 +279,43 @@ export class MultiLightWheelCard extends LitElement {
   protected render() {
     if (!this.config) return html``;
 
+    const markerGroups = this.getMarkerGroups();
+
     return html`
       <ha-card>
         <div class="card">
-          ${this.config.title ? html`<div class="title">${this.config.title}</div>` : null}
+          ${this.config.title
+            ? html`<div class="title">${this.config.title}</div>`
+            : null}
 
           <div class="wheel-wrapper">
-            <div class="wheel" style="width:${this.wheelSize}px; height:${this.wheelSize}px;">
-              ${this.markers.map(
-                (marker) => html`
+            <div
+              class="wheel"
+              style="width:${this.wheelSize}px; height:${this.wheelSize}px;"
+            >
+              ${markerGroups.map(
+                (group) => html`
                   <div
-                    class=${marker.entityId === this.activeEntityId ? "marker active" : "marker"}
+                    class=${this.isGroupActive(group)
+                      ? group.count > 1
+                        ? "marker group active"
+                        : "marker active"
+                      : group.count > 1
+                        ? "marker group"
+                        : "marker"}
                     style="
-                      left: ${marker.x}px;
-                      top: ${marker.y}px;
-                      background: ${marker.color};
+                      left: ${group.x}px;
+                      top: ${group.y}px;
+                      background: ${group.color};
                     "
-                    title=${marker.name}
-                    @pointerdown=${(ev: PointerEvent) => this.onMarkerPointerDown(ev, marker)}
-                  ></div>
+                    title=${group.markers.map((marker) => marker.name).join(", ")}
+                    @pointerdown=${(ev: PointerEvent) =>
+                      this.onMarkerGroupPointerDown(ev, group)}
+                  >
+                    ${group.count > 1
+                      ? html`<span class="group-count">${group.count}</span>`
+                      : ""}
+                  </div>
                 `
               )}
             </div>
@@ -293,6 +399,13 @@ export class MultiLightWheelCard extends LitElement {
       cursor: grab;
       z-index: 2;
       box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #222;
+      font-size: 13px;
+      font-weight: 700;
+      user-select: none;
     }
 
     .marker.active {
@@ -302,9 +415,40 @@ export class MultiLightWheelCard extends LitElement {
       z-index: 5;
     }
 
+    .marker.group {
+      width: 46px;
+      height: 46px;
+      border-radius: 50% 50% 50% 8px;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 15px;
+      z-index: 4;
+      color: #1f1f1f;
+    }
+
+    .marker.group.active {
+      width: 52px;
+      height: 52px;
+      border: 3px solid white;
+      z-index: 6;
+    }
+
+    .group-count {
+      transform: rotate(45deg);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
     .marker:active {
       cursor: grabbing;
+    }
+
+    .marker:not(.group):active {
       transform: translate(-50%, -50%) scale(1.12);
+    }
+
+    .marker.group:active {
+      transform: translate(-50%, -50%) rotate(-45deg) scale(1.08);
     }
 
     .lights-row {
