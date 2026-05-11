@@ -43,7 +43,7 @@ export class MultiLightWheelCard extends LitElement {
   private readonly wheelSize = 260;
   private readonly wheelRadius = 120;
   private readonly center = 130;
-  private readonly groupDistancePx = 38;
+  private readonly groupDistancePx = 42;
 
   public setConfig(config: MultiLightWheelCardConfig): void {
     if (!config.entities || !Array.isArray(config.entities)) {

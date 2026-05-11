@@ -80,7 +80,7 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         this.wheelSize = 260;
         this.wheelRadius = 120;
         this.center = 130;
-        this.groupDistancePx = 38;
+        this.groupDistancePx = 42;
     }
     setConfig(config) {
         if (!config.entities || !Array.isArray(config.entities)) {
