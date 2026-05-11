@@ -77,10 +77,11 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         super(...arguments);
         this.markers = [];
         this.activeEntityId = null;
+        this.expandedGroupId = null;
         this.wheelSize = 260;
         this.wheelRadius = 120;
         this.center = 130;
-        this.groupDistancePx = 42;
+        this.groupDistancePx = 38;
     }
     setConfig(config) {
         if (!config.entities || !Array.isArray(config.entities)) {
@@ -196,6 +197,20 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
             return false;
         return group.entityIds.includes(this.activeEntityId);
     }
+    toggleExpandedGroup(group) {
+        if (group.count <= 1)
+            return;
+        this.expandedGroupId = this.expandedGroupId === group.id ? null : group.id;
+    }
+    getExpandedMarkerPosition(group, index) {
+        const total = group.markers.length;
+        const angle = (2 * Math.PI * index) / total - Math.PI / 2;
+        const distance = 38;
+        return {
+            x: group.x + Math.cos(angle) * distance,
+            y: group.y + Math.sin(angle) * distance,
+        };
+    }
     updateMarkersLocally(entityIds, hue, saturation) {
         this.markers = this.markers.map((marker) => {
             if (!entityIds.includes(marker.entityId))
@@ -227,6 +242,7 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         event.preventDefault();
         event.stopPropagation();
         this.activeEntityId = group.entityIds[0];
+        this.expandedGroupId = null;
         const wheel = this.shadowRoot?.querySelector(".wheel");
         if (!wheel)
             return;
@@ -241,6 +257,29 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
             window.removeEventListener("pointerup", up);
             this.updateMarkersLocally(group.entityIds, hue, saturation);
             await this.setLightColor(group.entityIds, hue, saturation);
+        };
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+    }
+    onSingleMarkerPointerDown(event, marker) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.activeEntityId = marker.entityId;
+        const wheel = this.shadowRoot?.querySelector(".wheel");
+        if (!wheel)
+            return;
+        const rect = wheel.getBoundingClientRect();
+        const move = (moveEvent) => {
+            const { hue, saturation } = this.positionToHs(moveEvent.clientX, moveEvent.clientY, rect);
+            this.updateMarkersLocally([marker.entityId], hue, saturation);
+        };
+        const up = async (upEvent) => {
+            const { hue, saturation } = this.positionToHs(upEvent.clientX, upEvent.clientY, rect);
+            window.removeEventListener("pointermove", move);
+            window.removeEventListener("pointerup", up);
+            this.updateMarkersLocally([marker.entityId], hue, saturation);
+            await this.setLightColor([marker.entityId], hue, saturation);
+            this.expandedGroupId = null;
         };
         window.addEventListener("pointermove", move);
         window.addEventListener("pointerup", up);
@@ -267,29 +306,68 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
             <div
               class="wheel"
               style="width:${this.wheelSize}px; height:${this.wheelSize}px;"
+              @click=${() => {
+            this.expandedGroupId = null;
+        }}
             >
-              ${markerGroups.map((group) => b `
+              ${markerGroups.map((group) => {
+            const isExpanded = this.expandedGroupId === group.id;
+            return b `
                   <div
                     class=${this.isGroupActive(group)
-            ? group.count > 1
-                ? "marker group active"
-                : "marker active"
-            : group.count > 1
-                ? "marker group"
-                : "marker"}
+                ? group.count > 1
+                    ? "marker group active"
+                    : "marker active"
+                : group.count > 1
+                    ? "marker group"
+                    : "marker"}
                     style="
                       left: ${group.x}px;
                       top: ${group.y}px;
                       background: ${group.color};
                     "
                     title=${group.markers.map((marker) => marker.name).join(", ")}
-                    @pointerdown=${(ev) => this.onMarkerGroupPointerDown(ev, group)}
+                    @click=${(ev) => {
+                ev.stopPropagation();
+                this.toggleExpandedGroup(group);
+            }}
+                    @pointerdown=${(ev) => {
+                if (group.count > 1 && this.expandedGroupId === group.id) {
+                    this.onMarkerGroupPointerDown(ev, group);
+                    return;
+                }
+                if (group.count > 1) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    return;
+                }
+                this.onMarkerGroupPointerDown(ev, group);
+            }}
                   >
                     ${group.count > 1
-            ? b `<span class="group-count">${group.count}</span>`
-            : ""}
+                ? b `<span class="group-count">${group.count}</span>`
+                : ""}
                   </div>
-                `)}
+
+                  ${isExpanded && group.count > 1
+                ? group.markers.map((marker, index) => {
+                    const position = this.getExpandedMarkerPosition(group, index);
+                    return b `
+                          <div
+                            class="marker expanded-single"
+                            style="
+                              left: ${position.x}px;
+                              top: ${position.y}px;
+                              background: ${marker.color};
+                            "
+                            title=${marker.name}
+                            @pointerdown=${(ev) => this.onSingleMarkerPointerDown(ev, marker)}
+                          ></div>
+                        `;
+                })
+                : ""}
+                `;
+        })}
             </div>
           </div>
 
@@ -409,6 +487,16 @@ MultiLightWheelCard.styles = i$3 `
       justify-content: center;
     }
 
+    .marker.expanded-single {
+      width: 24px;
+      height: 24px;
+      border: 2px solid white;
+      z-index: 10;
+      box-shadow:
+        0 0 0 3px rgba(255, 255, 255, 0.25),
+        0 4px 10px rgba(0, 0, 0, 0.45);
+    }
+
     .marker:active {
       cursor: grabbing;
     }
@@ -419,6 +507,10 @@ MultiLightWheelCard.styles = i$3 `
 
     .marker.group:active {
       transform: translate(-50%, -50%) rotate(-45deg) scale(1.08);
+    }
+
+    .marker.expanded-single:active {
+      transform: translate(-50%, -50%) scale(1.18);
     }
 
     .lights-row {
@@ -501,6 +593,9 @@ __decorate([
 __decorate([
     r()
 ], MultiLightWheelCard.prototype, "activeEntityId", void 0);
+__decorate([
+    r()
+], MultiLightWheelCard.prototype, "expandedGroupId", void 0);
 MultiLightWheelCard = __decorate([
     t("multi-light-wheel-card")
 ], MultiLightWheelCard);
