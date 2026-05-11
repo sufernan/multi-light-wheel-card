@@ -41,6 +41,7 @@ export class MultiLightWheelCard extends LitElement {
   @state() private activeEntityId: string | null = null;
   @state() private activeEntityIds: string[] = [];
   @state() private expandedGroupId: string | null = null;
+  @state() private brightnessExpanded = false;
 
   private readonly wheelSize = 260;
   private readonly wheelRadius = 120;
@@ -305,6 +306,57 @@ export class MultiLightWheelCard extends LitElement {
     });
   }
 
+  private getBrightnessFromPointer(clientY: number, rect: DOMRect): number {
+    const relativeY = clientY - rect.top;
+    const ratio = 1 - relativeY / rect.height;
+    const clampedRatio = Math.max(0.01, Math.min(1, ratio));
+
+    return Math.round(clampedRatio * 100);
+  }
+
+  private onBrightnessPointerDown(event: PointerEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    this.brightnessExpanded = true;
+
+    const target = event.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+
+    const applyFromPointer = (clientY: number, commit: boolean) => {
+      const value = this.getBrightnessFromPointer(clientY, rect);
+
+      this.setSelectedBrightnessLocally(value);
+
+      if (commit) {
+        void this.setSelectedBrightness(value);
+      }
+    };
+
+    applyFromPointer(event.clientY, false);
+
+    const move = (moveEvent: PointerEvent) => {
+      applyFromPointer(moveEvent.clientY, false);
+    };
+
+    const up = (upEvent: PointerEvent) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+
+      applyFromPointer(upEvent.clientY, true);
+    };
+
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }
+
+  private toggleBrightnessExpanded(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    this.brightnessExpanded = !this.brightnessExpanded;
+  }
+
   private onMarkerGroupPointerDown(event: PointerEvent, group: MarkerGroup): void {
     event.preventDefault();
     event.stopPropagation();
@@ -312,6 +364,7 @@ export class MultiLightWheelCard extends LitElement {
     this.activeEntityId = group.entityIds[0];
     this.activeEntityIds = group.entityIds;
     this.expandedGroupId = null;
+    this.brightnessExpanded = false;
 
     const wheel = this.shadowRoot?.querySelector(".wheel") as HTMLElement | null;
 
@@ -353,6 +406,7 @@ export class MultiLightWheelCard extends LitElement {
 
     this.activeEntityId = marker.entityId;
     this.activeEntityIds = [marker.entityId];
+    this.brightnessExpanded = false;
 
     const wheel = this.shadowRoot?.querySelector(".wheel") as HTMLElement | null;
 
@@ -418,6 +472,7 @@ export class MultiLightWheelCard extends LitElement {
                 style="width:${this.wheelSize}px; height:${this.wheelSize}px;"
                 @click=${() => {
                   this.expandedGroupId = null;
+                  this.brightnessExpanded = false;
                 }}
               >
                 ${markerGroups.map((group) => {
@@ -449,6 +504,7 @@ export class MultiLightWheelCard extends LitElement {
                           this.activeEntityIds = [group.entityIds[0]];
                         }
 
+                        this.brightnessExpanded = false;
                         this.toggleExpandedGroup(group);
                       }}
                       @pointerdown=${(ev: PointerEvent) => {
@@ -495,25 +551,28 @@ export class MultiLightWheelCard extends LitElement {
               </div>
             </div>
 
-            <div class="brightness-side">
+            <div
+              class=${this.brightnessExpanded
+                ? "brightness-side expanded"
+                : "brightness-side"}
+            >
               <div class="brightness-value">${selectedBrightness} %</div>
 
-              <div class="brightness-pill">
-                <input
-                  class="brightness-slider"
-                  type="range"
-                  min="1"
-                  max="100"
-                  .value=${String(selectedBrightness)}
-                  @input=${(ev: Event) => {
-                    const input = ev.target as HTMLInputElement;
-                    this.setSelectedBrightnessLocally(Number(input.value));
-                  }}
-                  @change=${(ev: Event) => {
-                    const input = ev.target as HTMLInputElement;
-                    this.setSelectedBrightness(Number(input.value));
-                  }}
-                />
+              <div
+                class=${this.brightnessExpanded
+                  ? "brightness-control expanded"
+                  : "brightness-control"}
+                @click=${(ev: MouseEvent) => this.toggleBrightnessExpanded(ev)}
+                @pointerdown=${(ev: PointerEvent) => {
+                  if (this.brightnessExpanded) {
+                    this.onBrightnessPointerDown(ev);
+                  }
+                }}
+              >
+                <div
+                  class="brightness-fill"
+                  style="height: ${selectedBrightness}%;"
+                ></div>
 
                 <div class="brightness-icon">☼</div>
               </div>
@@ -530,6 +589,7 @@ export class MultiLightWheelCard extends LitElement {
                   @click=${() => {
                     this.activeEntityId = marker.entityId;
                     this.activeEntityIds = [marker.entityId];
+                    this.brightnessExpanded = false;
                   }}
                   @dblclick=${() => this.toggleLight(marker.entityId)}
                 >
@@ -572,7 +632,7 @@ export class MultiLightWheelCard extends LitElement {
 
     .wheel-control-row {
       display: grid;
-      grid-template-columns: 1fr 82px;
+      grid-template-columns: 1fr 90px;
       align-items: center;
       gap: 18px;
       margin-bottom: 18px;
@@ -600,7 +660,7 @@ export class MultiLightWheelCard extends LitElement {
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-width: 76px;
+      min-width: 80px;
     }
 
     .brightness-value {
@@ -608,19 +668,19 @@ export class MultiLightWheelCard extends LitElement {
       font-weight: 500;
       margin-bottom: 8px;
       color: var(--primary-text-color);
+      background: rgba(0, 0, 0, 0.25);
+      padding: 3px 8px;
+      border-radius: 999px;
+      min-width: 42px;
+      text-align: center;
     }
 
-    .brightness-pill {
+    .brightness-control {
       position: relative;
       width: 72px;
       height: 44px;
       border-radius: 999px;
-      background:
-        linear-gradient(
-          to right,
-          rgba(255, 255, 255, 0.35),
-          rgba(255, 255, 255, 0.9)
-        );
+      background: rgba(70, 70, 70, 0.75);
       box-shadow:
         inset 0 0 12px rgba(0, 0, 0, 0.22),
         0 4px 12px rgba(0, 0, 0, 0.28);
@@ -628,23 +688,38 @@ export class MultiLightWheelCard extends LitElement {
       align-items: center;
       justify-content: center;
       overflow: hidden;
+      cursor: pointer;
+      touch-action: none;
+      transition:
+        width 160ms ease,
+        height 160ms ease,
+        border-radius 160ms ease;
     }
 
-    .brightness-slider {
+    .brightness-control.expanded {
+      width: 82px;
+      height: 220px;
+      border-radius: 28px;
+      align-items: flex-end;
+    }
+
+    .brightness-fill {
       position: absolute;
-      inset: 0;
-      width: 100%;
+      left: 0;
+      right: 0;
+      bottom: 0;
       height: 100%;
-      opacity: 0;
-      cursor: pointer;
-      z-index: 2;
+      background: rgba(245, 245, 245, 0.9);
+      pointer-events: none;
     }
 
     .brightness-icon {
-      width: 24px;
-      height: 24px;
+      position: relative;
+      z-index: 2;
+      width: 26px;
+      height: 26px;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.85);
+      background: rgba(255, 255, 255, 0.92);
       color: rgba(60, 60, 60, 0.85);
       display: flex;
       align-items: center;
@@ -654,6 +729,11 @@ export class MultiLightWheelCard extends LitElement {
         0 1px 4px rgba(0, 0, 0, 0.35),
         inset 0 0 4px rgba(255, 255, 255, 0.6);
       pointer-events: none;
+      margin-bottom: 10px;
+    }
+
+    .brightness-control:not(.expanded) .brightness-icon {
+      margin-bottom: 0;
     }
 
     .marker {
@@ -806,16 +886,8 @@ export class MultiLightWheelCard extends LitElement {
       }
 
       .brightness-side {
-        flex-direction: row;
-        gap: 12px;
-      }
-
-      .brightness-value {
-        margin-bottom: 0;
-      }
-
-      .brightness-pill {
-        width: 120px;
+        flex-direction: column;
+        gap: 6px;
       }
     }
   `;
