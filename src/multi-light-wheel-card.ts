@@ -39,12 +39,13 @@ export class MultiLightWheelCard extends LitElement {
   @state() private config!: MultiLightWheelCardConfig;
   @state() private markers: Marker[] = [];
   @state() private activeEntityId: string | null = null;
+  @state() private activeEntityIds: string[] = [];
   @state() private expandedGroupId: string | null = null;
 
   private readonly wheelSize = 260;
   private readonly wheelRadius = 120;
   private readonly center = 130;
-  private readonly groupDistancePx = 38;
+  private readonly groupDistancePx = 32;
 
   public setConfig(config: MultiLightWheelCardConfig): void {
     if (!config.entities || !Array.isArray(config.entities)) {
@@ -249,11 +250,67 @@ export class MultiLightWheelCard extends LitElement {
     });
   }
 
+  private getSelectedEntityIds(): string[] {
+    if (this.activeEntityIds.length) {
+      return this.activeEntityIds;
+    }
+
+    if (this.activeEntityId) {
+      return [this.activeEntityId];
+    }
+
+    return this.markers.map((marker) => marker.entityId);
+  }
+
+  private getSelectedBrightness(): number {
+    const selectedIds = this.getSelectedEntityIds();
+
+    const selectedMarkers = this.markers.filter((marker) =>
+      selectedIds.includes(marker.entityId)
+    );
+
+    if (!selectedMarkers.length) return 100;
+
+    const averageBrightness =
+      selectedMarkers.reduce((sum, marker) => sum + marker.brightness, 0) /
+      selectedMarkers.length;
+
+    return Math.round((averageBrightness / 255) * 100);
+  }
+
+  private setSelectedBrightnessLocally(value: number): void {
+    const selectedIds = this.getSelectedEntityIds();
+    const brightness = Math.round((value / 100) * 255);
+
+    this.markers = this.markers.map((marker) => {
+      if (!selectedIds.includes(marker.entityId)) return marker;
+
+      return {
+        ...marker,
+        brightness,
+        state: "on",
+      };
+    });
+  }
+
+  private async setSelectedBrightness(value: number): Promise<void> {
+    const selectedIds = this.getSelectedEntityIds();
+    const brightness = Math.round((value / 100) * 255);
+
+    this.setSelectedBrightnessLocally(value);
+
+    await this.hass.callService("light", "turn_on", {
+      entity_id: selectedIds,
+      brightness,
+    });
+  }
+
   private onMarkerGroupPointerDown(event: PointerEvent, group: MarkerGroup): void {
     event.preventDefault();
     event.stopPropagation();
 
     this.activeEntityId = group.entityIds[0];
+    this.activeEntityIds = group.entityIds;
     this.expandedGroupId = null;
 
     const wheel = this.shadowRoot?.querySelector(".wheel") as HTMLElement | null;
@@ -295,6 +352,7 @@ export class MultiLightWheelCard extends LitElement {
     event.stopPropagation();
 
     this.activeEntityId = marker.entityId;
+    this.activeEntityIds = [marker.entityId];
 
     const wheel = this.shadowRoot?.querySelector(".wheel") as HTMLElement | null;
 
@@ -344,6 +402,7 @@ export class MultiLightWheelCard extends LitElement {
     if (!this.config) return html``;
 
     const markerGroups = this.getMarkerGroups();
+    const selectedBrightness = this.getSelectedBrightness();
 
     return html`
       <ha-card>
@@ -352,77 +411,112 @@ export class MultiLightWheelCard extends LitElement {
             ? html`<div class="title">${this.config.title}</div>`
             : null}
 
-          <div class="wheel-wrapper">
-            <div
-              class="wheel"
-              style="width:${this.wheelSize}px; height:${this.wheelSize}px;"
-              @click=${() => {
-                this.expandedGroupId = null;
-              }}
-            >
-              ${markerGroups.map((group) => {
-                const isExpanded = this.expandedGroupId === group.id;
+          <div class="wheel-control-row">
+            <div class="wheel-wrapper">
+              <div
+                class="wheel"
+                style="width:${this.wheelSize}px; height:${this.wheelSize}px;"
+                @click=${() => {
+                  this.expandedGroupId = null;
+                }}
+              >
+                ${markerGroups.map((group) => {
+                  const isExpanded = this.expandedGroupId === group.id;
 
-                return html`
-                  <div
-                    class=${this.isGroupActive(group)
-                      ? group.count > 1
-                        ? "marker group active"
-                        : "marker active"
-                      : group.count > 1
-                        ? "marker group"
-                        : "marker"}
-                    style="
-                      left: ${group.x}px;
-                      top: ${group.y}px;
-                      background: ${group.color};
-                    "
-                    title=${group.markers.map((marker) => marker.name).join(", ")}
-                    @click=${(ev: MouseEvent) => {
-                      ev.stopPropagation();
-                      this.toggleExpandedGroup(group);
-                    }}
-                    @pointerdown=${(ev: PointerEvent) => {
-                      if (group.count > 1 && this.expandedGroupId === group.id) {
-                        this.onMarkerGroupPointerDown(ev, group);
-                        return;
-                      }
-
-                      if (group.count > 1) {
-                        ev.preventDefault();
+                  return html`
+                    <div
+                      class=${this.isGroupActive(group)
+                        ? group.count > 1
+                          ? "marker group active"
+                          : "marker active"
+                        : group.count > 1
+                          ? "marker group"
+                          : "marker"}
+                      style="
+                        left: ${group.x}px;
+                        top: ${group.y}px;
+                        background: ${group.color};
+                      "
+                      title=${group.markers.map((marker) => marker.name).join(", ")}
+                      @click=${(ev: MouseEvent) => {
                         ev.stopPropagation();
-                        return;
-                      }
 
-                      this.onMarkerGroupPointerDown(ev, group);
-                    }}
-                  >
-                    ${group.count > 1
-                      ? html`<span class="group-count">${group.count}</span>`
+                        if (group.count > 1) {
+                          this.activeEntityId = group.entityIds[0];
+                          this.activeEntityIds = group.entityIds;
+                        } else {
+                          this.activeEntityId = group.entityIds[0];
+                          this.activeEntityIds = [group.entityIds[0]];
+                        }
+
+                        this.toggleExpandedGroup(group);
+                      }}
+                      @pointerdown=${(ev: PointerEvent) => {
+                        if (group.count > 1 && this.expandedGroupId === group.id) {
+                          this.onMarkerGroupPointerDown(ev, group);
+                          return;
+                        }
+
+                        if (group.count > 1) {
+                          ev.preventDefault();
+                          ev.stopPropagation();
+                          return;
+                        }
+
+                        this.onMarkerGroupPointerDown(ev, group);
+                      }}
+                    >
+                      ${group.count > 1
+                        ? html`<span class="group-count">${group.count}</span>`
+                        : ""}
+                    </div>
+
+                    ${isExpanded && group.count > 1
+                      ? group.markers.map((marker, index) => {
+                          const position = this.getExpandedMarkerPosition(group, index);
+
+                          return html`
+                            <div
+                              class="marker expanded-single"
+                              style="
+                                left: ${position.x}px;
+                                top: ${position.y}px;
+                                background: ${marker.color};
+                              "
+                              title=${marker.name}
+                              @pointerdown=${(ev: PointerEvent) =>
+                                this.onSingleMarkerPointerDown(ev, marker)}
+                            ></div>
+                          `;
+                        })
                       : ""}
-                  </div>
+                  `;
+                })}
+              </div>
+            </div>
 
-                  ${isExpanded && group.count > 1
-                    ? group.markers.map((marker, index) => {
-                        const position = this.getExpandedMarkerPosition(group, index);
+            <div class="brightness-side">
+              <div class="brightness-value">${selectedBrightness} %</div>
 
-                        return html`
-                          <div
-                            class="marker expanded-single"
-                            style="
-                              left: ${position.x}px;
-                              top: ${position.y}px;
-                              background: ${marker.color};
-                            "
-                            title=${marker.name}
-                            @pointerdown=${(ev: PointerEvent) =>
-                              this.onSingleMarkerPointerDown(ev, marker)}
-                          ></div>
-                        `;
-                      })
-                    : ""}
-                `;
-              })}
+              <div class="brightness-pill">
+                <input
+                  class="brightness-slider"
+                  type="range"
+                  min="1"
+                  max="100"
+                  .value=${String(selectedBrightness)}
+                  @input=${(ev: Event) => {
+                    const input = ev.target as HTMLInputElement;
+                    this.setSelectedBrightnessLocally(Number(input.value));
+                  }}
+                  @change=${(ev: Event) => {
+                    const input = ev.target as HTMLInputElement;
+                    this.setSelectedBrightness(Number(input.value));
+                  }}
+                />
+
+                <div class="brightness-icon">☼</div>
+              </div>
             </div>
           </div>
 
@@ -435,6 +529,7 @@ export class MultiLightWheelCard extends LitElement {
                     : "light-tile"}
                   @click=${() => {
                     this.activeEntityId = marker.entityId;
+                    this.activeEntityIds = [marker.entityId];
                   }}
                   @dblclick=${() => this.toggleLight(marker.entityId)}
                 >
@@ -475,10 +570,17 @@ export class MultiLightWheelCard extends LitElement {
       margin-bottom: 16px;
     }
 
+    .wheel-control-row {
+      display: grid;
+      grid-template-columns: 1fr 82px;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
     .wheel-wrapper {
       display: flex;
       justify-content: center;
-      margin-bottom: 18px;
     }
 
     .wheel {
@@ -491,6 +593,67 @@ export class MultiLightWheelCard extends LitElement {
       box-shadow:
         inset 0 0 24px rgba(0, 0, 0, 0.25),
         0 6px 18px rgba(0, 0, 0, 0.35);
+    }
+
+    .brightness-side {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-width: 76px;
+    }
+
+    .brightness-value {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: var(--primary-text-color);
+    }
+
+    .brightness-pill {
+      position: relative;
+      width: 72px;
+      height: 44px;
+      border-radius: 999px;
+      background:
+        linear-gradient(
+          to right,
+          rgba(255, 255, 255, 0.35),
+          rgba(255, 255, 255, 0.9)
+        );
+      box-shadow:
+        inset 0 0 12px rgba(0, 0, 0, 0.22),
+        0 4px 12px rgba(0, 0, 0, 0.28);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .brightness-slider {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .brightness-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.85);
+      color: rgba(60, 60, 60, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow:
+        0 1px 4px rgba(0, 0, 0, 0.35),
+        inset 0 0 4px rgba(255, 255, 255, 0.6);
+      pointer-events: none;
     }
 
     .marker {
@@ -635,6 +798,24 @@ export class MultiLightWheelCard extends LitElement {
     @media (max-width: 500px) {
       .lights-row {
         grid-template-columns: repeat(3, minmax(80px, 1fr));
+      }
+
+      .wheel-control-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      .brightness-side {
+        flex-direction: row;
+        gap: 12px;
+      }
+
+      .brightness-value {
+        margin-bottom: 0;
+      }
+
+      .brightness-pill {
+        width: 120px;
       }
     }
   `;
