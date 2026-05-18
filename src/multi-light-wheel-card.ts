@@ -48,6 +48,8 @@ export class MultiLightWheelCard extends LitElement {
   private readonly center = 130;
   private readonly groupDistancePx = 32;
 
+  private ignoreHassUpdatesUntil = 0;
+
   public setConfig(config: MultiLightWheelCardConfig): void {
     if (!config.entities || !Array.isArray(config.entities)) {
       throw new Error("You need to define entities");
@@ -62,8 +64,16 @@ export class MultiLightWheelCard extends LitElement {
 
   protected updated(changedProps: PropertyValues): void {
     if (changedProps.has("hass")) {
+      if (Date.now() < this.ignoreHassUpdatesUntil) {
+        return;
+      }
+
       this.updateMarkersFromEntities();
     }
+  }
+
+  private pauseHassUpdates(ms = 900): void {
+    this.ignoreHassUpdatesUntil = Date.now() + ms;
   }
 
   private updateMarkersFromEntities(): void {
@@ -294,6 +304,8 @@ export class MultiLightWheelCard extends LitElement {
   }
 
   private setSelectedBrightnessLocally(value: number): void {
+    this.pauseHassUpdates();
+
     const selectedIds = this.getSelectedEntityIds();
     const brightness = Math.round((value / 100) * 255);
 
@@ -312,12 +324,15 @@ export class MultiLightWheelCard extends LitElement {
     const selectedIds = this.getSelectedEntityIds();
     const brightness = Math.round((value / 100) * 255);
 
+    this.pauseHassUpdates(1400);
     this.setSelectedBrightnessLocally(value);
 
     await this.hass.callService("light", "turn_on", {
       entity_id: selectedIds,
       brightness,
     });
+
+    this.pauseHassUpdates(500);
   }
 
   private getBrightnessFromPointer(clientY: number, rect: DOMRect): number {
@@ -393,6 +408,7 @@ export class MultiLightWheelCard extends LitElement {
         rect
       );
 
+      this.pauseHassUpdates();
       this.updateMarkersLocally(group.entityIds, hue, saturation);
     };
 
@@ -406,8 +422,10 @@ export class MultiLightWheelCard extends LitElement {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
 
+      this.pauseHassUpdates(1400);
       this.updateMarkersLocally(group.entityIds, hue, saturation);
       await this.setLightColor(group.entityIds, hue, saturation);
+      this.pauseHassUpdates(500);
     };
 
     window.addEventListener("pointermove", move);
@@ -435,6 +453,7 @@ export class MultiLightWheelCard extends LitElement {
         rect
       );
 
+      this.pauseHassUpdates();
       this.updateMarkersLocally([marker.entityId], hue, saturation);
     };
 
@@ -448,8 +467,10 @@ export class MultiLightWheelCard extends LitElement {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
 
+      this.pauseHassUpdates(1400);
       this.updateMarkersLocally([marker.entityId], hue, saturation);
       await this.setLightColor([marker.entityId], hue, saturation);
+      this.pauseHassUpdates(500);
 
       this.expandedGroupId = null;
     };

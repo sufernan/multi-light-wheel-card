@@ -84,6 +84,7 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         this.wheelRadius = 120;
         this.center = 130;
         this.groupDistancePx = 32;
+        this.ignoreHassUpdatesUntil = 0;
     }
     setConfig(config) {
         if (!config.entities || !Array.isArray(config.entities)) {
@@ -96,8 +97,14 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
     }
     updated(changedProps) {
         if (changedProps.has("hass")) {
+            if (Date.now() < this.ignoreHassUpdatesUntil) {
+                return;
+            }
             this.updateMarkersFromEntities();
         }
+    }
+    pauseHassUpdates(ms = 900) {
+        this.ignoreHassUpdatesUntil = Date.now() + ms;
     }
     updateMarkersFromEntities() {
         if (!this.hass || !this.config?.entities)
@@ -268,6 +275,7 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         return Math.round((averageBrightness / 255) * 100);
     }
     setSelectedBrightnessLocally(value) {
+        this.pauseHassUpdates();
         const selectedIds = this.getSelectedEntityIds();
         const brightness = Math.round((value / 100) * 255);
         this.markers = this.markers.map((marker) => {
@@ -283,11 +291,13 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
     async setSelectedBrightness(value) {
         const selectedIds = this.getSelectedEntityIds();
         const brightness = Math.round((value / 100) * 255);
+        this.pauseHassUpdates(1400);
         this.setSelectedBrightnessLocally(value);
         await this.hass.callService("light", "turn_on", {
             entity_id: selectedIds,
             brightness,
         });
+        this.pauseHassUpdates(500);
     }
     getBrightnessFromPointer(clientY, rect) {
         const relativeY = clientY - rect.top;
@@ -338,14 +348,17 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         const rect = wheel.getBoundingClientRect();
         const move = (moveEvent) => {
             const { hue, saturation } = this.positionToHs(moveEvent.clientX, moveEvent.clientY, rect);
+            this.pauseHassUpdates();
             this.updateMarkersLocally(group.entityIds, hue, saturation);
         };
         const up = async (upEvent) => {
             const { hue, saturation } = this.positionToHs(upEvent.clientX, upEvent.clientY, rect);
             window.removeEventListener("pointermove", move);
             window.removeEventListener("pointerup", up);
+            this.pauseHassUpdates(1400);
             this.updateMarkersLocally(group.entityIds, hue, saturation);
             await this.setLightColor(group.entityIds, hue, saturation);
+            this.pauseHassUpdates(500);
         };
         window.addEventListener("pointermove", move);
         window.addEventListener("pointerup", up);
@@ -362,14 +375,17 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         const rect = wheel.getBoundingClientRect();
         const move = (moveEvent) => {
             const { hue, saturation } = this.positionToHs(moveEvent.clientX, moveEvent.clientY, rect);
+            this.pauseHassUpdates();
             this.updateMarkersLocally([marker.entityId], hue, saturation);
         };
         const up = async (upEvent) => {
             const { hue, saturation } = this.positionToHs(upEvent.clientX, upEvent.clientY, rect);
             window.removeEventListener("pointermove", move);
             window.removeEventListener("pointerup", up);
+            this.pauseHassUpdates(1400);
             this.updateMarkersLocally([marker.entityId], hue, saturation);
             await this.setLightColor([marker.entityId], hue, saturation);
+            this.pauseHassUpdates(500);
             this.expandedGroupId = null;
         };
         window.addEventListener("pointermove", move);
