@@ -195,9 +195,18 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         return groups;
     }
     isGroupActive(group) {
+        if (this.activeEntityIds.length) {
+            return group.entityIds.some((entityId) => this.activeEntityIds.includes(entityId));
+        }
         if (!this.activeEntityId)
             return false;
         return group.entityIds.includes(this.activeEntityId);
+    }
+    isEntitySelected(entityId) {
+        if (this.activeEntityIds.length) {
+            return this.activeEntityIds.includes(entityId);
+        }
+        return this.activeEntityId === entityId;
     }
     toggleExpandedGroup(group) {
         if (group.count <= 1)
@@ -320,7 +329,7 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         event.preventDefault();
         event.stopPropagation();
         this.activeEntityId = group.entityIds[0];
-        this.activeEntityIds = group.entityIds;
+        this.activeEntityIds = [...group.entityIds];
         this.expandedGroupId = null;
         this.brightnessExpanded = false;
         const wheel = this.shadowRoot?.querySelector(".wheel");
@@ -365,6 +374,16 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         };
         window.addEventListener("pointermove", move);
         window.addEventListener("pointerup", up);
+    }
+    selectGroup(group) {
+        this.activeEntityId = group.entityIds[0];
+        this.activeEntityIds = [...group.entityIds];
+        this.brightnessExpanded = false;
+    }
+    selectSingleEntity(entityId) {
+        this.activeEntityId = entityId;
+        this.activeEntityIds = [entityId];
+        this.brightnessExpanded = false;
     }
     getShortName(name) {
         return name
@@ -414,15 +433,7 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
                       title=${group.markers.map((marker) => marker.name).join(", ")}
                       @click=${(ev) => {
                 ev.stopPropagation();
-                if (group.count > 1) {
-                    this.activeEntityId = group.entityIds[0];
-                    this.activeEntityIds = group.entityIds;
-                }
-                else {
-                    this.activeEntityId = group.entityIds[0];
-                    this.activeEntityIds = [group.entityIds[0]];
-                }
-                this.brightnessExpanded = false;
+                this.selectGroup(group);
                 this.toggleExpandedGroup(group);
             }}
                       @pointerdown=${(ev) => {
@@ -431,8 +442,6 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
                     return;
                 }
                 if (group.count > 1) {
-                    ev.preventDefault();
-                    ev.stopPropagation();
                     return;
                 }
                 this.onMarkerGroupPointerDown(ev, group);
@@ -496,13 +505,11 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
           <div class="lights-row">
             ${this.markers.map((marker) => b `
                 <button
-                  class=${marker.entityId === this.activeEntityId
+                  class=${this.isEntitySelected(marker.entityId)
             ? "light-tile selected"
             : "light-tile"}
                   @click=${() => {
-            this.activeEntityId = marker.entityId;
-            this.activeEntityIds = [marker.entityId];
-            this.brightnessExpanded = false;
+            this.selectSingleEntity(marker.entityId);
         }}
                   @dblclick=${() => this.toggleLight(marker.entityId)}
                 >
@@ -756,7 +763,10 @@ MultiLightWheelCard.styles = i$3 `
 
     .light-tile.selected {
       outline: 2px solid var(--primary-color);
-      background: rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.16);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.18),
+        0 4px 12px rgba(0, 0, 0, 0.28);
     }
 
     .bulb {

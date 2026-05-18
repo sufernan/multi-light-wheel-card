@@ -187,9 +187,23 @@ export class MultiLightWheelCard extends LitElement {
   }
 
   private isGroupActive(group: MarkerGroup): boolean {
+    if (this.activeEntityIds.length) {
+      return group.entityIds.some((entityId) =>
+        this.activeEntityIds.includes(entityId)
+      );
+    }
+
     if (!this.activeEntityId) return false;
 
     return group.entityIds.includes(this.activeEntityId);
+  }
+
+  private isEntitySelected(entityId: string): boolean {
+    if (this.activeEntityIds.length) {
+      return this.activeEntityIds.includes(entityId);
+    }
+
+    return this.activeEntityId === entityId;
   }
 
   private toggleExpandedGroup(group: MarkerGroup): void {
@@ -362,7 +376,7 @@ export class MultiLightWheelCard extends LitElement {
     event.stopPropagation();
 
     this.activeEntityId = group.entityIds[0];
-    this.activeEntityIds = group.entityIds;
+    this.activeEntityIds = [...group.entityIds];
     this.expandedGroupId = null;
     this.brightnessExpanded = false;
 
@@ -444,6 +458,18 @@ export class MultiLightWheelCard extends LitElement {
     window.addEventListener("pointerup", up);
   }
 
+  private selectGroup(group: MarkerGroup): void {
+    this.activeEntityId = group.entityIds[0];
+    this.activeEntityIds = [...group.entityIds];
+    this.brightnessExpanded = false;
+  }
+
+  private selectSingleEntity(entityId: string): void {
+    this.activeEntityId = entityId;
+    this.activeEntityIds = [entityId];
+    this.brightnessExpanded = false;
+  }
+
   private getShortName(name: string): string {
     return name
       .replace("Hue jardin luces ", "")
@@ -496,15 +522,7 @@ export class MultiLightWheelCard extends LitElement {
                       @click=${(ev: MouseEvent) => {
                         ev.stopPropagation();
 
-                        if (group.count > 1) {
-                          this.activeEntityId = group.entityIds[0];
-                          this.activeEntityIds = group.entityIds;
-                        } else {
-                          this.activeEntityId = group.entityIds[0];
-                          this.activeEntityIds = [group.entityIds[0]];
-                        }
-
-                        this.brightnessExpanded = false;
+                        this.selectGroup(group);
                         this.toggleExpandedGroup(group);
                       }}
                       @pointerdown=${(ev: PointerEvent) => {
@@ -514,8 +532,6 @@ export class MultiLightWheelCard extends LitElement {
                         }
 
                         if (group.count > 1) {
-                          ev.preventDefault();
-                          ev.stopPropagation();
                           return;
                         }
 
@@ -583,13 +599,11 @@ export class MultiLightWheelCard extends LitElement {
             ${this.markers.map(
               (marker) => html`
                 <button
-                  class=${marker.entityId === this.activeEntityId
+                  class=${this.isEntitySelected(marker.entityId)
                     ? "light-tile selected"
                     : "light-tile"}
                   @click=${() => {
-                    this.activeEntityId = marker.entityId;
-                    this.activeEntityIds = [marker.entityId];
-                    this.brightnessExpanded = false;
+                    this.selectSingleEntity(marker.entityId);
                   }}
                   @dblclick=${() => this.toggleLight(marker.entityId)}
                 >
@@ -844,7 +858,10 @@ export class MultiLightWheelCard extends LitElement {
 
     .light-tile.selected {
       outline: 2px solid var(--primary-color);
-      background: rgba(255, 255, 255, 0.14);
+      background: rgba(255, 255, 255, 0.16);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.18),
+        0 4px 12px rgba(0, 0, 0, 0.28);
     }
 
     .bulb {
