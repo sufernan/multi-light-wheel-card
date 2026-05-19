@@ -10,6 +10,7 @@ interface MultiLightWheelCardEntityConfig {
 interface MultiLightWheelCardConfig {
   type: string;
   title?: string;
+  showTitle?: boolean;
   entities: Array<string | MultiLightWheelCardEntityConfig>;
   icon?: string;
 }
@@ -805,6 +806,14 @@ export class MultiLightWheelCard extends LitElement {
       .trim();
   }
 
+  private shouldShowTitle(): boolean {
+    if (this.config.showTitle === false) {
+      return false;
+    }
+
+    return Boolean(this.config.title);
+  } 
+
   protected render() {
     if (!this.config) return html``;
 
@@ -814,7 +823,7 @@ export class MultiLightWheelCard extends LitElement {
     return html`
       <ha-card>
         <div class="card">
-          ${this.config.title
+          ${this.shouldShowTitle()
             ? html`<div class="title">${this.config.title}</div>`
             : null}
 
