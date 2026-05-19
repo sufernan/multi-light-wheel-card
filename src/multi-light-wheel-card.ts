@@ -856,6 +856,16 @@ export class MultiLightWheelCard extends LitElement {
                   class=${this.isEntitySelected(marker.entityId)
                     ? "light-tile selected"
                     : "light-tile"}
+                  style=${marker.state === "on"
+                    ? `
+                      background:
+                        linear-gradient(
+                          135deg,
+                          color-mix(in srgb, ${marker.color} 70%, rgba(255,255,255,0.16)),
+                          color-mix(in srgb, ${marker.color} 38%, rgba(0,0,0,0.18))
+                        );
+                    `
+                    : ""}
                   @click=${() => {
                     this.selectSingleEntity(marker.entityId);
                   }}
@@ -1179,15 +1189,16 @@ export class MultiLightWheelCard extends LitElement {
       cursor: pointer;
       padding: 8px;
       box-sizing: border-box;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
     }
 
     .light-tile.selected {
-      outline: 2px solid var(--primary-color);
+      outline: none;
       background: rgba(255, 255, 255, 0.18);
       box-shadow:
-        inset 0 0 0 2px rgba(255, 255, 255, 0.75),
-        inset 0 0 0 5px color-mix(in srgb, var(--primary-color) 70%, transparent),
-        0 4px 12px rgba(0, 0, 0, 0.28);
+        inset 0 0 0 2px rgba(255, 255, 255, 0.92),
+        inset 0 0 0 6px color-mix(in srgb, var(--primary-color) 80%, transparent),
+        0 6px 14px rgba(0, 0, 0, 0.34);
 }
 
     .bulb {
