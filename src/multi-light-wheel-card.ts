@@ -5,6 +5,9 @@ import type { HomeAssistant } from "custom-card-helpers";
 interface MultiLightWheelCardEntityConfig {
   entity: string;
   icon?: string;
+  name?: string;
+  showName?: boolean | string;
+  show_name?: boolean | string;
 }
 
 interface MultiLightWheelCardConfig {
@@ -12,6 +15,8 @@ interface MultiLightWheelCardConfig {
   title?: string;
   showTitle?: boolean | string;
   show_title?: boolean | string;
+  showName?: boolean | string;
+  show_name?: boolean | string;
   entities: Array<string | MultiLightWheelCardEntityConfig>;
   icon?: string;
   buttonColumns?: number | string;
@@ -25,6 +30,7 @@ interface Marker {
   entityId: string;
   name: string;
   icon: string;
+  showName: boolean;
   hue: number;
   saturation: number;
   brightness: number;
@@ -116,6 +122,37 @@ export class MultiLightWheelCard extends LitElement {
     return stateObjIcon ?? "mdi:lightbulb";
   }
 
+  private getEntityName(
+    entityConfig: string | MultiLightWheelCardEntityConfig,
+    fallbackName: string
+  ): string {
+    if (typeof entityConfig !== "string" && entityConfig.name) {
+      return entityConfig.name;
+    }
+
+    return fallbackName;
+  }
+
+  private getEntityShowName(
+    entityConfig: string | MultiLightWheelCardEntityConfig
+  ): boolean {
+    if (typeof entityConfig !== "string") {
+      if (this.isFalse(entityConfig.showName) || this.isFalse(entityConfig.show_name)) {
+        return false;
+      }
+
+      if (this.isTrue(entityConfig.showName) || this.isTrue(entityConfig.show_name)) {
+        return true;
+      }
+    }
+
+    if (this.isFalse(this.config.showName) || this.isFalse(this.config.show_name)) {
+      return false;
+    }
+
+    return true;
+  }
+
   private updateMarkersFromEntities(): void {
     if (!this.hass || !this.config?.entities) return;
 
@@ -163,8 +200,12 @@ export class MultiLightWheelCard extends LitElement {
 
         return {
           entityId,
-          name: stateObj.attributes.friendly_name ?? entityId,
+          name: this.getEntityName(
+            entityConfig,
+            stateObj.attributes.friendly_name ?? entityId
+          ),
           icon: this.getEntityIcon(entityConfig, stateObj.attributes.icon),
+          showName: this.getEntityShowName(entityConfig),
           hue,
           saturation,
           brightness,
@@ -989,7 +1030,9 @@ export class MultiLightWheelCard extends LitElement {
                     </div>
 
                     <div class="tile-text">
-                      <div class="name">${this.getShortName(marker.name)}</div>
+                      ${marker.showName
+                        ? html`<div class="name">${this.getShortName(marker.name)}</div>`
+                        : null}
                       <div class="brightness">
                         ${marker.state === "on"
                           ? `${Math.round((marker.brightness / 255) * 100)} %`
