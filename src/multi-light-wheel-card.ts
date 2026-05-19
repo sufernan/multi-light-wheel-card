@@ -1166,7 +1166,7 @@ export class MultiLightWheelCard extends LitElement {
       min-width: 0;
       height: 105px;
       border: none;
-      border-radius: 10px;
+      border-radius: 20px;
       background: rgba(255, 255, 255, 0.08);
       color: var(--primary-text-color);
       display: flex;
