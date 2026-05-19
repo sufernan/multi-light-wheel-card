@@ -60,7 +60,7 @@ export class MultiLightWheelCard extends LitElement {
   private readonly wheelRadius = 120;
   private readonly center = 130;
   private readonly groupDistancePx = 32;
-  private readonly dragThresholdPx = 10;
+  private readonly dragThresholdPx = 6;
 
   private ignoreHassUpdatesUntil = 0;
 
@@ -91,10 +91,10 @@ export class MultiLightWheelCard extends LitElement {
   }
 
   private getEntityId(
-    entityConfig: string | MultiLightWheelCardEntityConfig
-  ): string {
-    return typeof entityConfig === "string" ? entityConfig : entityConfig.entity;
-  }
+  entityConfig: string | MultiLightWheelCardEntityConfig
+): string {
+  return typeof entityConfig === "string" ? entityConfig : entityConfig.entity;
+}
 
   private getEntityIcon(
     entityConfig: string | MultiLightWheelCardEntityConfig,
@@ -129,17 +129,19 @@ export class MultiLightWheelCard extends LitElement {
         const colorTempKelvin =
           Number(stateObj.attributes.color_temp_kelvin ?? 0) || null;
 
-        const minColorTempKelvin =
-          Number(stateObj.attributes.min_color_temp_kelvin) ||
-          (stateObj.attributes.max_mireds
-            ? this.miredToKelvin(Number(stateObj.attributes.max_mireds))
-            : 2000);
+        const minColorTempKelvin = Number(
+          stateObj.attributes.min_color_temp_kelvin ??
+            stateObj.attributes.min_mireds
+              ? this.miredToKelvin(Number(stateObj.attributes.max_mireds))
+              : 2000
+        );
 
-        const maxColorTempKelvin =
-          Number(stateObj.attributes.max_color_temp_kelvin) ||
-          (stateObj.attributes.min_mireds
-            ? this.miredToKelvin(Number(stateObj.attributes.min_mireds))
-            : 6500);
+        const maxColorTempKelvin = Number(
+          stateObj.attributes.max_color_temp_kelvin ??
+            stateObj.attributes.max_mireds
+              ? this.miredToKelvin(Number(stateObj.attributes.min_mireds))
+              : 6500
+        );
 
         const effectiveKelvin =
           colorTempKelvin ??
@@ -270,10 +272,35 @@ export class MultiLightWheelCard extends LitElement {
     return Math.max(min, Math.min(max, value));
   }
 
+  private shouldShowMarkerOnWheel(marker: Marker): boolean {
+    if (marker.state === "on") return true;
+
+    // Las luces apagadas no aparecen en la wheel por defecto.
+    // Solo se muestran si el usuario las selecciona desde el botón inferior.
+    return this.isEntitySelected(marker.entityId);
+  }
+
+  private getMarkerForWheel(marker: Marker): Marker {
+    if (marker.state === "on") return marker;
+
+    // Si una luz apagada está seleccionada, la mostramos en el centro.
+    // Al arrastrarla y soltarla, se encenderá con el color/temperatura elegido.
+    return {
+      ...marker,
+      x: this.center,
+      y: this.center,
+      saturation: 0,
+    };
+  }
+
   private getMarkerGroups(): MarkerGroup[] {
     const groups: MarkerGroup[] = [];
 
-    for (const marker of this.markers) {
+    const wheelMarkers = this.markers
+      .filter((marker) => this.shouldShowMarkerOnWheel(marker))
+      .map((marker) => this.getMarkerForWheel(marker));
+
+    for (const marker of wheelMarkers) {
       const existingGroup = groups.find((group) => {
         const dx = group.x - marker.x;
         const dy = group.y - marker.y;
@@ -758,18 +785,6 @@ export class MultiLightWheelCard extends LitElement {
     window.addEventListener("pointerup", up);
   }
 
-  private onExpandedSingleClick(event: MouseEvent, marker: Marker): void {
-    event.preventDefault();
-    event.stopPropagation();
-
-    this.activeEntityId = marker.entityId;
-    this.activeEntityIds = [marker.entityId];
-    this.brightnessExpanded = false;
-
-    // No cerramos expandedGroupId.
-    // Un click corto solo selecciona la luz dentro del grupo expandido.
-  }
-
   private selectGroup(group: MarkerGroup): void {
     this.activeEntityId = group.entityIds[0];
     this.activeEntityIds = [...group.entityIds];
@@ -888,8 +903,6 @@ export class MultiLightWheelCard extends LitElement {
                                 background: ${marker.color};
                               "
                               title=${marker.name}
-                              @click=${(ev: MouseEvent) =>
-                                this.onExpandedSingleClick(ev, marker)}
                               @pointerdown=${(ev: PointerEvent) =>
                                 this.onSingleMarkerPointerDown(ev, marker)}
                             ></div>
@@ -958,6 +971,9 @@ export class MultiLightWheelCard extends LitElement {
                   <ha-icon
                     class=${marker.state === "on" ? "tile-icon on" : "tile-icon off"}
                     .icon=${marker.icon}
+                    style=${marker.state === "on"
+                      ? `color: ${marker.color};`
+                      : "color: rgba(255, 255, 255, 0.45);"}
                   ></ha-icon>
 
                   <div class="name">${this.getShortName(marker.name)}</div>
@@ -1304,7 +1320,7 @@ export class MultiLightWheelCard extends LitElement {
       padding: 8px;
       box-sizing: border-box;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-      transition:
+       transition:
         background 180ms ease,
         box-shadow 180ms ease,
         transform 120ms ease;
@@ -1329,18 +1345,15 @@ export class MultiLightWheelCard extends LitElement {
       display: flex;
       align-items: center;
       justify-content: center;
-      color: white;
-      filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
+      filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.45));
     }
 
     .tile-icon.on {
       opacity: 1;
-      color: white;
     }
 
     .tile-icon.off {
-      opacity: 0.42;
-      color: rgba(255, 255, 255, 0.75);
+      opacity: 0.45;
       filter: none;
     }
 
