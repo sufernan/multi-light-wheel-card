@@ -963,9 +963,9 @@ MultiLightWheelCard.styles = i$3 `
       grid-template-columns: repeat(4, minmax(80px, 1fr));
       grid-auto-rows: 105px;
       gap: 10px;
-      max-height: calc(105px * 2 + 10px);
+      max-height: calc(105px * 2 + 18px);
       overflow-y: auto;
-      padding-bottom: 4px;
+      padding-bottom: 6px;
     }
 
     .light-tile {
@@ -991,9 +991,9 @@ MultiLightWheelCard.styles = i$3 `
       outline: 2px solid var(--primary-color);
       background: rgba(255, 255, 255, 0.18);
       box-shadow:
-        0 0 0 2px rgba(255, 255, 255, 0.45),
-        0 0 0 5px color-mix(in srgb, var(--primary-color) 65%, transparent),
-        0 6px 16px rgba(0, 0, 0, 0.36);
+        inset 0 0 0 2px rgba(255, 255, 255, 0.75),
+        inset 0 0 0 5px color-mix(in srgb, var(--primary-color) 70%, transparent),
+        0 4px 12px rgba(0, 0, 0, 0.28);
 }
 
     .bulb {
