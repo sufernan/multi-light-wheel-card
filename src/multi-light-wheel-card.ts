@@ -10,7 +10,8 @@ interface MultiLightWheelCardEntityConfig {
 interface MultiLightWheelCardConfig {
   type: string;
   title?: string;
-  showTitle?: boolean;
+  showTitle?: boolean | string;
+  show_title?: boolean | string;
   entities: Array<string | MultiLightWheelCardEntityConfig>;
   icon?: string;
 }
@@ -806,13 +807,39 @@ export class MultiLightWheelCard extends LitElement {
       .trim();
   }
 
-  private shouldShowTitle(): boolean {
-    if (this.config.showTitle === false) {
+  private parseBooleanConfigValue(
+    value: boolean | string | undefined,
+    defaultValue: boolean
+  ): boolean {
+    if (value === undefined) return defaultValue;
+
+    if (typeof value === "boolean") return value;
+
+    const normalizedValue = value.trim().toLowerCase();
+
+    if (["false", "0", "no", "off"].includes(normalizedValue)) {
       return false;
     }
 
-    return Boolean(this.config.title);
-  } 
+    if (["true", "1", "yes", "on"].includes(normalizedValue)) {
+      return true;
+    }
+
+    return defaultValue;
+  }
+
+  private shouldShowTitle(): boolean {
+    const title = this.config.title?.trim();
+
+    if (!title) {
+      return false;
+    }
+
+    return this.parseBooleanConfigValue(
+      this.config.showTitle ?? this.config.show_title,
+      true
+    );
+  }
 
   protected render() {
     if (!this.config) return html``;

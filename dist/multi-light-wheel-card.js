@@ -593,6 +593,27 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
             .replace("hue_jardin_luces_", "")
             .trim();
     }
+    parseBooleanConfigValue(value, defaultValue) {
+        if (value === undefined)
+            return defaultValue;
+        if (typeof value === "boolean")
+            return value;
+        const normalizedValue = value.trim().toLowerCase();
+        if (["false", "0", "no", "off"].includes(normalizedValue)) {
+            return false;
+        }
+        if (["true", "1", "yes", "on"].includes(normalizedValue)) {
+            return true;
+        }
+        return defaultValue;
+    }
+    shouldShowTitle() {
+        const title = this.config.title?.trim();
+        if (!title) {
+            return false;
+        }
+        return this.parseBooleanConfigValue(this.config.showTitle ?? this.config.show_title, true);
+    }
     render() {
         if (!this.config)
             return b ``;
@@ -601,7 +622,7 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         return b `
       <ha-card>
         <div class="card">
-          ${this.config.title
+          ${this.shouldShowTitle()
             ? b `<div class="title">${this.config.title}</div>`
             : null}
 
