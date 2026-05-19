@@ -626,7 +626,9 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
                     const position = this.getExpandedMarkerPosition(group, index);
                     return b `
                             <div
-                              class="marker expanded-single"
+                              class=${this.isEntitySelected(marker.entityId)
+                        ? "marker expanded-single selected-single"
+                        : "marker expanded-single"}
                               style="
                                 left: ${position.x}px;
                                 top: ${position.y}px;
@@ -975,6 +977,19 @@ MultiLightWheelCard.styles = i$3 `
         0 0 0 3px rgba(255, 255, 255, 0.25),
         0 4px 10px rgba(0, 0, 0, 0.45);
     }
+    
+    .marker.expanded-single.selected-single {
+      width: 38px;
+      height: 38px;
+      border: 3px solid white;
+      border-radius: 50% 50% 50% 8px;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      z-index: 14;
+      box-shadow:
+        0 0 0 3px rgba(255, 255, 255, 0.4),
+        0 0 0 7px color-mix(in srgb, var(--primary-color) 60%, transparent),
+        0 8px 18px rgba(0, 0, 0, 0.55);
+    }
 
     .marker:active {
       cursor: grabbing;
@@ -998,8 +1013,12 @@ MultiLightWheelCard.styles = i$3 `
         0 8px 18px rgba(0, 0, 0, 0.55);
     }
 
-    .marker.expanded-single:active {
+    .marker.expanded-single:not(.selected-single):active {
       transform: translate(-50%, -50%) scale(1.18);
+    }
+
+    .marker.expanded-single.selected-single:active {
+      transform: translate(-50%, -50%) rotate(-45deg) scale(1.08);
     }
 
     .lights-row {
