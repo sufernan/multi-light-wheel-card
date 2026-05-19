@@ -989,11 +989,12 @@ MultiLightWheelCard.styles = i$3 `
 
     .light-tile.selected {
       outline: 2px solid var(--primary-color);
-      background: rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.18);
       box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.18),
-        0 4px 12px rgba(0, 0, 0, 0.28);
-    }
+        0 0 0 2px rgba(255, 255, 255, 0.45),
+        0 0 0 5px color-mix(in srgb, var(--primary-color) 65%, transparent),
+        0 6px 16px rgba(0, 0, 0, 0.36);
+}
 
     .bulb {
       width: 24px;
