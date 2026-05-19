@@ -715,9 +715,13 @@ export class MultiLightWheelCard extends LitElement {
       if (!hasDragged) {
         this.activeEntityId = marker.entityId;
         this.activeEntityIds = [marker.entityId];
+        this.brightnessExpanded = false;
 
-        // Importante: no cerramos expandedGroupId.
-        // Así el grupo sigue desplegado y solo cambia la selección visual.
+        // Importante:
+        // No modificamos color.
+        // No llamamos a Home Assistant.
+        // No cerramos expandedGroupId.
+        // Así el grupo sigue agrupado/desplegado y solo cambia la selección.
         return;
       }
 
