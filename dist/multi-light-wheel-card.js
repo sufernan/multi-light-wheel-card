@@ -85,7 +85,7 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         this.wheelRadius = 120;
         this.center = 130;
         this.groupDistancePx = 32;
-        this.dragThresholdPx = 6;
+        this.dragThresholdPx = 10;
         this.ignoreHassUpdatesUntil = 0;
     }
     setConfig(config) {
@@ -134,14 +134,14 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
             const saturation = Number(hs[1] ?? 0);
             const brightness = Number(stateObj.attributes.brightness ?? 0);
             const colorTempKelvin = Number(stateObj.attributes.color_temp_kelvin ?? 0) || null;
-            const minColorTempKelvin = Number(stateObj.attributes.min_color_temp_kelvin ??
-                stateObj.attributes.min_mireds
-                ? this.miredToKelvin(Number(stateObj.attributes.max_mireds))
-                : 2000);
-            const maxColorTempKelvin = Number(stateObj.attributes.max_color_temp_kelvin ??
-                stateObj.attributes.max_mireds
-                ? this.miredToKelvin(Number(stateObj.attributes.min_mireds))
-                : 6500);
+            const minColorTempKelvin = Number(stateObj.attributes.min_color_temp_kelvin) ||
+                (stateObj.attributes.max_mireds
+                    ? this.miredToKelvin(Number(stateObj.attributes.max_mireds))
+                    : 2000);
+            const maxColorTempKelvin = Number(stateObj.attributes.max_color_temp_kelvin) ||
+                (stateObj.attributes.min_mireds
+                    ? this.miredToKelvin(Number(stateObj.attributes.min_mireds))
+                    : 6500);
             const effectiveKelvin = colorTempKelvin ??
                 Math.round((minColorTempKelvin + maxColorTempKelvin) / 2);
             const position = this.wheelMode === "white"
@@ -554,6 +554,15 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         window.addEventListener("pointermove", move);
         window.addEventListener("pointerup", up);
     }
+    onExpandedSingleClick(event, marker) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.activeEntityId = marker.entityId;
+        this.activeEntityIds = [marker.entityId];
+        this.brightnessExpanded = false;
+        // No cerramos expandedGroupId.
+        // Un click corto solo selecciona la luz dentro del grupo expandido.
+    }
     selectGroup(group) {
         this.activeEntityId = group.entityIds[0];
         this.activeEntityIds = [...group.entityIds];
@@ -663,6 +672,7 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
                                 background: ${marker.color};
                               "
                               title=${marker.name}
+                              @click=${(ev) => this.onExpandedSingleClick(ev, marker)}
                               @pointerdown=${(ev) => this.onSingleMarkerPointerDown(ev, marker)}
                             ></div>
                           `;
@@ -729,9 +739,6 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
                   <ha-icon
                     class=${marker.state === "on" ? "tile-icon on" : "tile-icon off"}
                     .icon=${marker.icon}
-                    style=${marker.state === "on"
-            ? `color: ${marker.color};`
-            : "color: rgba(255, 255, 255, 0.45);"}
                   ></ha-icon>
 
                   <div class="name">${this.getShortName(marker.name)}</div>
@@ -1077,7 +1084,7 @@ MultiLightWheelCard.styles = i$3 `
       padding: 8px;
       box-sizing: border-box;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-       transition:
+      transition:
         background 180ms ease,
         box-shadow 180ms ease,
         transform 120ms ease;
@@ -1102,15 +1109,18 @@ MultiLightWheelCard.styles = i$3 `
       display: flex;
       align-items: center;
       justify-content: center;
-      filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.45));
+      color: white;
+      filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
     }
 
     .tile-icon.on {
       opacity: 1;
+      color: white;
     }
 
     .tile-icon.off {
-      opacity: 0.45;
+      opacity: 0.42;
+      color: rgba(255, 255, 255, 0.75);
       filter: none;
     }
 

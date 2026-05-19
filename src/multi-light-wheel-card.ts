@@ -60,7 +60,7 @@ export class MultiLightWheelCard extends LitElement {
   private readonly wheelRadius = 120;
   private readonly center = 130;
   private readonly groupDistancePx = 32;
-  private readonly dragThresholdPx = 6;
+  private readonly dragThresholdPx = 10;
 
   private ignoreHassUpdatesUntil = 0;
 
@@ -91,10 +91,10 @@ export class MultiLightWheelCard extends LitElement {
   }
 
   private getEntityId(
-  entityConfig: string | MultiLightWheelCardEntityConfig
-): string {
-  return typeof entityConfig === "string" ? entityConfig : entityConfig.entity;
-}
+    entityConfig: string | MultiLightWheelCardEntityConfig
+  ): string {
+    return typeof entityConfig === "string" ? entityConfig : entityConfig.entity;
+  }
 
   private getEntityIcon(
     entityConfig: string | MultiLightWheelCardEntityConfig,
@@ -129,19 +129,17 @@ export class MultiLightWheelCard extends LitElement {
         const colorTempKelvin =
           Number(stateObj.attributes.color_temp_kelvin ?? 0) || null;
 
-        const minColorTempKelvin = Number(
-          stateObj.attributes.min_color_temp_kelvin ??
-            stateObj.attributes.min_mireds
-              ? this.miredToKelvin(Number(stateObj.attributes.max_mireds))
-              : 2000
-        );
+        const minColorTempKelvin =
+          Number(stateObj.attributes.min_color_temp_kelvin) ||
+          (stateObj.attributes.max_mireds
+            ? this.miredToKelvin(Number(stateObj.attributes.max_mireds))
+            : 2000);
 
-        const maxColorTempKelvin = Number(
-          stateObj.attributes.max_color_temp_kelvin ??
-            stateObj.attributes.max_mireds
-              ? this.miredToKelvin(Number(stateObj.attributes.min_mireds))
-              : 6500
-        );
+        const maxColorTempKelvin =
+          Number(stateObj.attributes.max_color_temp_kelvin) ||
+          (stateObj.attributes.min_mireds
+            ? this.miredToKelvin(Number(stateObj.attributes.min_mireds))
+            : 6500);
 
         const effectiveKelvin =
           colorTempKelvin ??
@@ -760,6 +758,18 @@ export class MultiLightWheelCard extends LitElement {
     window.addEventListener("pointerup", up);
   }
 
+  private onExpandedSingleClick(event: MouseEvent, marker: Marker): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    this.activeEntityId = marker.entityId;
+    this.activeEntityIds = [marker.entityId];
+    this.brightnessExpanded = false;
+
+    // No cerramos expandedGroupId.
+    // Un click corto solo selecciona la luz dentro del grupo expandido.
+  }
+
   private selectGroup(group: MarkerGroup): void {
     this.activeEntityId = group.entityIds[0];
     this.activeEntityIds = [...group.entityIds];
@@ -878,6 +888,8 @@ export class MultiLightWheelCard extends LitElement {
                                 background: ${marker.color};
                               "
                               title=${marker.name}
+                              @click=${(ev: MouseEvent) =>
+                                this.onExpandedSingleClick(ev, marker)}
                               @pointerdown=${(ev: PointerEvent) =>
                                 this.onSingleMarkerPointerDown(ev, marker)}
                             ></div>
@@ -946,9 +958,6 @@ export class MultiLightWheelCard extends LitElement {
                   <ha-icon
                     class=${marker.state === "on" ? "tile-icon on" : "tile-icon off"}
                     .icon=${marker.icon}
-                    style=${marker.state === "on"
-                      ? `color: ${marker.color};`
-                      : "color: rgba(255, 255, 255, 0.45);"}
                   ></ha-icon>
 
                   <div class="name">${this.getShortName(marker.name)}</div>
@@ -1295,7 +1304,7 @@ export class MultiLightWheelCard extends LitElement {
       padding: 8px;
       box-sizing: border-box;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-       transition:
+      transition:
         background 180ms ease,
         box-shadow 180ms ease,
         transform 120ms ease;
@@ -1320,15 +1329,18 @@ export class MultiLightWheelCard extends LitElement {
       display: flex;
       align-items: center;
       justify-content: center;
-      filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.45));
+      color: white;
+      filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
     }
 
     .tile-icon.on {
       opacity: 1;
+      color: white;
     }
 
     .tile-icon.off {
-      opacity: 0.45;
+      opacity: 0.42;
+      color: rgba(255, 255, 255, 0.75);
       filter: none;
     }
 
