@@ -2,10 +2,16 @@ import { LitElement, html, css, PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
 
+interface MultiLightWheelCardEntityConfig {
+  entity: string;
+  icon?: string;
+}
+
 interface MultiLightWheelCardConfig {
   type: string;
   title?: string;
-  entities: string[];
+  entities: Array<string | MultiLightWheelCardEntityConfig>;
+  icon?: string;
 }
 
 type WheelMode = "color" | "white";
@@ -13,6 +19,7 @@ type WheelMode = "color" | "white";
 interface Marker {
   entityId: string;
   name: string;
+  icon: string;
   hue: number;
   saturation: number;
   brightness: number;
@@ -82,11 +89,33 @@ export class MultiLightWheelCard extends LitElement {
     this.ignoreHassUpdatesUntil = Date.now() + ms;
   }
 
+  private getEntityId(
+  entityConfig: string | MultiLightWheelCardEntityConfig
+): string {
+  return typeof entityConfig === "string" ? entityConfig : entityConfig.entity;
+}
+
+  private getEntityIcon(
+    entityConfig: string | MultiLightWheelCardEntityConfig,
+    stateObjIcon?: string
+  ): string {
+    if (typeof entityConfig !== "string" && entityConfig.icon) {
+      return entityConfig.icon;
+    }
+
+    if (this.config?.icon) {
+      return this.config.icon;
+    }
+
+    return stateObjIcon ?? "mdi:lightbulb";
+  }
+
   private updateMarkersFromEntities(): void {
     if (!this.hass || !this.config?.entities) return;
 
     this.markers = this.config.entities
-      .map((entityId) => {
+      .map((entityConfig) => {
+        const entityId = this.getEntityId(entityConfig);
         const stateObj = this.hass.states[entityId];
 
         if (!stateObj) return null;
@@ -129,6 +158,7 @@ export class MultiLightWheelCard extends LitElement {
         return {
           entityId,
           name: stateObj.attributes.friendly_name ?? entityId,
+          icon: this.getEntityIcon(entityConfig, stateObj.attributes.icon),
           hue,
           saturation,
           brightness,
@@ -875,12 +905,13 @@ export class MultiLightWheelCard extends LitElement {
                   }}
                   @dblclick=${() => this.toggleLight(marker.entityId)}
                 >
-                  <div
-                    class=${marker.state === "on" ? "bulb on" : "bulb off"}
-                    style="background: ${marker.state === "on"
-                      ? marker.color
-                      : "rgba(255, 255, 255, 0.35)"};"
-                  ></div>
+                  <ha-icon
+                    class=${marker.state === "on" ? "tile-icon on" : "tile-icon off"}
+                    .icon=${marker.icon}
+                    style=${marker.state === "on"
+                      ? `color: ${marker.color};`
+                      : "color: rgba(255, 255, 255, 0.45);"}
+                  ></ha-icon>
 
                   <div class="name">${this.getShortName(marker.name)}</div>
 
@@ -1212,19 +1243,23 @@ export class MultiLightWheelCard extends LitElement {
       transform: scale(0.98);
     }
 
-    .bulb {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
+    .tile-icon {
+      --mdc-icon-size: 30px;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.45));
     }
 
-    .bulb.on {
-      box-shadow: 0 0 14px rgba(255, 255, 255, 0.35);
+    .tile-icon.on {
+      opacity: 1;
     }
 
-    .bulb.off {
+    .tile-icon.off {
       opacity: 0.45;
-      box-shadow: none;
+      filter: none;
     }
 
     .name {
