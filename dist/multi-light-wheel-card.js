@@ -931,10 +931,15 @@ MultiLightWheelCard.styles = i$3 `
     }
 
     .marker.active {
-      width: 28px;
-      height: 28px;
+      width: 38px;
+      height: 38px;
       border: 3px solid white;
-      z-index: 5;
+      z-index: 7;
+      border-radius: 50% 50% 50% 8px;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      box-shadow:
+        0 0 0 3px rgba(255, 255, 255, 0.35),
+        0 6px 16px rgba(0, 0, 0, 0.5);
     }
 
     .marker.group {
@@ -975,12 +980,22 @@ MultiLightWheelCard.styles = i$3 `
       cursor: grabbing;
     }
 
-    .marker:not(.group):active {
+    .marker:not(.group):not(.active):active {
       transform: translate(-50%, -50%) scale(1.12);
     }
 
-    .marker.group:active {
+    .marker.active:not(.group):active {
       transform: translate(-50%, -50%) rotate(-45deg) scale(1.08);
+    }
+
+    .marker.group.active {
+      width: 56px;
+      height: 56px;
+      border: 3px solid white;
+      z-index: 8;
+      box-shadow:
+        0 0 0 4px rgba(255, 255, 255, 0.35),
+        0 8px 18px rgba(0, 0, 0, 0.55);
     }
 
     .marker.expanded-single:active {
