@@ -10,8 +10,13 @@ interface MultiLightWheelCardEntityConfig {
 interface MultiLightWheelCardConfig {
   type: string;
   title?: string;
+  showTitle?: boolean | string;
+  show_title?: boolean | string;
   entities: Array<string | MultiLightWheelCardEntityConfig>;
   icon?: string;
+  buttonColumns?: number | string;
+  button_columns?: number | string;
+  columns?: number | string;
 }
 
 type WheelMode = "color" | "white";
@@ -60,7 +65,7 @@ export class MultiLightWheelCard extends LitElement {
   private readonly wheelRadius = 120;
   private readonly center = 130;
   private readonly groupDistancePx = 32;
-  private readonly dragThresholdPx = 6;
+  private readonly dragThresholdPx = 10;
 
   private ignoreHassUpdatesUntil = 0;
 
@@ -773,9 +778,9 @@ export class MultiLightWheelCard extends LitElement {
   }
 
   private shouldShowTitle(): boolean {
-    const showTitle = this.config.showTitle ?? this.config.show_title;
+    const rawValue = this.config.showTitle ?? this.config.show_title;
 
-    if (showTitle === false || showTitle === "false") {
+    if (rawValue === false || rawValue === "false") {
       return false;
     }
 
@@ -783,17 +788,17 @@ export class MultiLightWheelCard extends LitElement {
   }
 
   private getButtonColumns(): number {
-    const rawColumns =
-      this.config.buttonColumns ?? this.config.button_columns ?? this.config.columns ?? 2;
+    const rawValue =
+      this.config.buttonColumns ??
+      this.config.button_columns ??
+      this.config.columns ??
+      2;
 
-    const parsedColumns =
-      typeof rawColumns === "string" ? Number(rawColumns) : rawColumns;
+    const value = Number(rawValue);
 
-    if (!Number.isFinite(parsedColumns)) {
-      return 2;
-    }
+    if (!Number.isFinite(value)) return 2;
 
-    return Math.max(1, Math.min(6, Math.round(parsedColumns)));
+    return Math.max(1, Math.min(4, Math.round(value)));
   }
 
   private getShortName(name: string): string {
@@ -809,7 +814,6 @@ export class MultiLightWheelCard extends LitElement {
 
     const markerGroups = this.getMarkerGroups();
     const selectedBrightness = this.getSelectedBrightness();
-    const buttonColumns = this.getButtonColumns();
 
     return html`
       <ha-card>
@@ -903,6 +907,11 @@ export class MultiLightWheelCard extends LitElement {
                                 background: ${marker.color};
                               "
                               title=${marker.name}
+                              @click=${(ev: MouseEvent) => {
+                                ev.preventDefault();
+                                ev.stopPropagation();
+                                this.selectSingleEntity(marker.entityId);
+                              }}
                               @pointerdown=${(ev: PointerEvent) =>
                                 this.onSingleMarkerPointerDown(ev, marker)}
                             ></div>
@@ -942,7 +951,10 @@ export class MultiLightWheelCard extends LitElement {
             </div>
           </div>
 
-          <div class="lights-row" style="--button-columns: ${buttonColumns};">
+          <div
+            class="lights-row"
+            style=${`--button-columns: ${this.getButtonColumns()};`}
+          >
             ${this.markers.map(
               (marker) => html`
                 <button
@@ -1297,22 +1309,22 @@ export class MultiLightWheelCard extends LitElement {
     .lights-row {
       display: grid;
       grid-template-columns: repeat(var(--button-columns, 2), minmax(0, 1fr));
-      grid-auto-rows: 72px;
+      grid-auto-rows: 64px;
       gap: 12px;
-      max-height: calc(72px * 4 + 36px);
+      max-height: calc(64px * 4 + 36px);
       overflow-y: auto;
       padding: 6px;
     }
 
     .light-tile {
       min-width: 0;
-      height: 72px;
+      height: 64px;
       border: none;
-      border-radius: 26px;
+      border-radius: 999px;
       background: rgba(255, 255, 255, 0.08);
       color: var(--primary-text-color);
       cursor: pointer;
-      padding: 10px 14px;
+      padding: 8px 14px 8px 8px;
       box-sizing: border-box;
       text-align: left;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
@@ -1325,9 +1337,9 @@ export class MultiLightWheelCard extends LitElement {
     .light-tile.selected {
       outline: none;
       box-shadow:
-        inset 0 0 0 2px rgba(255, 255, 255, 0.92),
-        inset 0 0 0 6px color-mix(in srgb, var(--primary-color) 80%, transparent),
-        0 6px 14px rgba(0, 0, 0, 0.34);
+        inset 0 0 0 2px rgba(255, 255, 255, 0.95),
+        inset 0 0 0 6px color-mix(in srgb, var(--primary-color) 82%, transparent),
+        0 6px 16px rgba(0, 0, 0, 0.38);
     }
 
     .light-tile:active {
@@ -1340,18 +1352,21 @@ export class MultiLightWheelCard extends LitElement {
       gap: 12px;
       width: 100%;
       height: 100%;
+      min-width: 0;
     }
 
     .tile-icon-wrap {
-      width: 42px;
-      height: 42px;
-      min-width: 42px;
+      width: 46px;
+      height: 46px;
+      min-width: 46px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(255, 255, 255, 0.14);
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+      background: rgba(0, 0, 0, 0.18);
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+        0 2px 7px rgba(0, 0, 0, 0.22);
     }
 
     .tile-text {
@@ -1359,14 +1374,14 @@ export class MultiLightWheelCard extends LitElement {
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 4px;
+      gap: 3px;
       flex: 1;
     }
 
     .tile-icon {
-      --mdc-icon-size: 22px;
-      width: 22px;
-      height: 22px;
+      --mdc-icon-size: 24px;
+      width: 24px;
+      height: 24px;
       color: white;
       filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
     }
@@ -1387,21 +1402,21 @@ export class MultiLightWheelCard extends LitElement {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-weight: 600;
-      font-size: 14px;
-      letter-spacing: 0.2px;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.12em;
     }
 
     .brightness {
-      font-size: 12px;
+      font-size: 11px;
       opacity: 0.82;
     }
 
     @media (max-width: 500px) {
       .lights-row {
-        grid-template-columns: repeat(var(--button-columns, 2), minmax(0, 1fr));
-        grid-auto-rows: 68px;
-        max-height: calc(68px * 4 + 36px);
+        grid-template-columns: 1fr;
+        grid-auto-rows: 62px;
+        max-height: calc(62px * 5 + 48px);
       }
 
       .wheel-control-row {
