@@ -85,6 +85,7 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         this.wheelRadius = 120;
         this.center = 130;
         this.groupDistancePx = 32;
+        this.dragThresholdPx = 6;
         this.ignoreHassUpdatesUntil = 0;
     }
     setConfig(config) {
@@ -495,7 +496,21 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         if (!wheel)
             return;
         const rect = wheel.getBoundingClientRect();
+        const startClientX = event.clientX;
+        const startClientY = event.clientY;
+        let hasDragged = false;
+        let lastClientX = event.clientX;
+        let lastClientY = event.clientY;
         const move = (moveEvent) => {
+            lastClientX = moveEvent.clientX;
+            lastClientY = moveEvent.clientY;
+            const dx = moveEvent.clientX - startClientX;
+            const dy = moveEvent.clientY - startClientY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (!hasDragged && distance < this.dragThresholdPx) {
+                return;
+            }
+            hasDragged = true;
             this.pauseHassUpdates();
             if (this.wheelMode === "white") {
                 const kelvin = this.positionToKelvin(moveEvent.clientX, rect, marker.minColorTempKelvin, marker.maxColorTempKelvin);
@@ -508,16 +523,25 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         const up = async (upEvent) => {
             window.removeEventListener("pointermove", move);
             window.removeEventListener("pointerup", up);
+            lastClientX = upEvent.clientX;
+            lastClientY = upEvent.clientY;
+            if (!hasDragged) {
+                this.activeEntityId = marker.entityId;
+                this.activeEntityIds = [marker.entityId];
+                // Importante: no cerramos expandedGroupId.
+                // Así el grupo sigue desplegado y solo cambia la selección visual.
+                return;
+            }
             this.pauseHassUpdates(1400);
             if (this.wheelMode === "white") {
-                const kelvin = this.positionToKelvin(upEvent.clientX, rect, marker.minColorTempKelvin, marker.maxColorTempKelvin);
+                const kelvin = this.positionToKelvin(lastClientX, rect, marker.minColorTempKelvin, marker.maxColorTempKelvin);
                 this.updateWhiteMarkersLocally([marker.entityId], kelvin);
                 await this.setLightWhiteTemperature([marker.entityId], kelvin);
                 this.pauseHassUpdates(500);
                 this.expandedGroupId = null;
                 return;
             }
-            const { hue, saturation } = this.positionToHs(upEvent.clientX, upEvent.clientY, rect);
+            const { hue, saturation } = this.positionToHs(lastClientX, lastClientY, rect);
             this.updateMarkersLocally([marker.entityId], hue, saturation);
             await this.setLightColor([marker.entityId], hue, saturation);
             this.pauseHassUpdates(500);

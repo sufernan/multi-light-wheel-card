@@ -60,6 +60,7 @@ export class MultiLightWheelCard extends LitElement {
   private readonly wheelRadius = 120;
   private readonly center = 130;
   private readonly groupDistancePx = 32;
+  private readonly dragThresholdPx = 6;
 
   private ignoreHassUpdatesUntil = 0;
 
@@ -661,7 +662,26 @@ export class MultiLightWheelCard extends LitElement {
 
     const rect = wheel.getBoundingClientRect();
 
+    const startClientX = event.clientX;
+    const startClientY = event.clientY;
+
+    let hasDragged = false;
+    let lastClientX = event.clientX;
+    let lastClientY = event.clientY;
+
     const move = (moveEvent: PointerEvent) => {
+      lastClientX = moveEvent.clientX;
+      lastClientY = moveEvent.clientY;
+
+      const dx = moveEvent.clientX - startClientX;
+      const dy = moveEvent.clientY - startClientY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (!hasDragged && distance < this.dragThresholdPx) {
+        return;
+      }
+
+      hasDragged = true;
       this.pauseHassUpdates();
 
       if (this.wheelMode === "white") {
@@ -689,11 +709,23 @@ export class MultiLightWheelCard extends LitElement {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
 
+      lastClientX = upEvent.clientX;
+      lastClientY = upEvent.clientY;
+
+      if (!hasDragged) {
+        this.activeEntityId = marker.entityId;
+        this.activeEntityIds = [marker.entityId];
+
+        // Importante: no cerramos expandedGroupId.
+        // Así el grupo sigue desplegado y solo cambia la selección visual.
+        return;
+      }
+
       this.pauseHassUpdates(1400);
 
       if (this.wheelMode === "white") {
         const kelvin = this.positionToKelvin(
-          upEvent.clientX,
+          lastClientX,
           rect,
           marker.minColorTempKelvin,
           marker.maxColorTempKelvin
@@ -708,8 +740,8 @@ export class MultiLightWheelCard extends LitElement {
       }
 
       const { hue, saturation } = this.positionToHs(
-        upEvent.clientX,
-        upEvent.clientY,
+        lastClientX,
+        lastClientY,
         rect
       );
 
