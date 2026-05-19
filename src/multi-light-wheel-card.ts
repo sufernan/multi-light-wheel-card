@@ -1009,15 +1009,18 @@ export class MultiLightWheelCard extends LitElement {
     .wheel-control-row {
       display: grid;
       grid-template-columns: 76px 1fr 90px;
-      align-items: center;
+      align-items: end;
       gap: 18px;
       margin-bottom: 18px;
     }
 
     .mode-side {
       display: flex;
-      align-items: center;
+      align-items: flex-end;
       justify-content: center;
+      height: 260px;
+      padding-bottom: 8px;
+      box-sizing: border-box;
     }
 
     .mode-button {
@@ -1106,8 +1109,11 @@ export class MultiLightWheelCard extends LitElement {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-end;
       min-width: 80px;
+      height: 260px;
+      padding-bottom: 8px;
+      box-sizing: border-box;
     }
 
     .brightness-value {
@@ -1371,6 +1377,20 @@ export class MultiLightWheelCard extends LitElement {
     }
 
     @media (max-width: 500px) {
+      .mode-side {
+        order: 1;
+        height: auto;
+        padding-bottom: 0;
+      }
+
+      .brightness-side {
+        order: 3;
+        height: auto;
+        padding-bottom: 0;
+        flex-direction: column;
+        gap: 6px;
+      }  
+
       .lights-row {
         grid-template-columns: repeat(3, minmax(80px, 1fr));
       }
