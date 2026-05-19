@@ -120,6 +120,26 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         }
         return stateObjIcon ?? "mdi:lightbulb";
     }
+    getEntityName(entityConfig, fallbackName) {
+        if (typeof entityConfig !== "string" && entityConfig.name) {
+            return entityConfig.name;
+        }
+        return fallbackName;
+    }
+    getEntityShowName(entityConfig) {
+        if (typeof entityConfig !== "string") {
+            if (this.isFalse(entityConfig.showName) || this.isFalse(entityConfig.show_name)) {
+                return false;
+            }
+            if (this.isTrue(entityConfig.showName) || this.isTrue(entityConfig.show_name)) {
+                return true;
+            }
+        }
+        if (this.isFalse(this.config.showName) || this.isFalse(this.config.show_name)) {
+            return false;
+        }
+        return true;
+    }
     updateMarkersFromEntities() {
         if (!this.hass || !this.config?.entities)
             return;
@@ -149,8 +169,9 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
                 : this.hsToPosition(hue, saturation);
             return {
                 entityId,
-                name: stateObj.attributes.friendly_name ?? entityId,
+                name: this.getEntityName(entityConfig, stateObj.attributes.friendly_name ?? entityId),
                 icon: this.getEntityIcon(entityConfig, stateObj.attributes.icon),
+                showName: this.getEntityShowName(entityConfig),
                 hue,
                 saturation,
                 brightness,
@@ -760,7 +781,9 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
                     </div>
 
                     <div class="tile-text">
-                      <div class="name">${this.getShortName(marker.name)}</div>
+                      ${marker.showName
+            ? b `<div class="name">${this.getShortName(marker.name)}</div>`
+            : null}
                       <div class="brightness">
                         ${marker.state === "on"
             ? `${Math.round((marker.brightness / 255) * 100)} %`
