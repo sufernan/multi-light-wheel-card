@@ -120,6 +120,39 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         }
         return stateObjIcon ?? "mdi:lightbulb";
     }
+    parseBooleanOption(value, defaultValue) {
+        if (value === undefined)
+            return defaultValue;
+        if (typeof value === "boolean")
+            return value;
+        const normalizedValue = value.trim().toLowerCase();
+        if (normalizedValue === "false" ||
+            normalizedValue === "0" ||
+            normalizedValue === "no") {
+            return false;
+        }
+        if (normalizedValue === "true" ||
+            normalizedValue === "1" ||
+            normalizedValue === "yes") {
+            return true;
+        }
+        return defaultValue;
+    }
+    getEntityName(entityConfig, fallbackName) {
+        if (typeof entityConfig !== "string" && entityConfig.name) {
+            return entityConfig.name;
+        }
+        return fallbackName;
+    }
+    getEntityShowName(entityConfig) {
+        if (typeof entityConfig !== "string") {
+            const entityShowName = entityConfig.showName ?? entityConfig.show_name;
+            if (entityShowName !== undefined) {
+                return this.parseBooleanOption(entityShowName, true);
+            }
+        }
+        return this.parseBooleanOption(this.config.showName ?? this.config.show_name, true);
+    }
     updateMarkersFromEntities() {
         if (!this.hass || !this.config?.entities)
             return;
@@ -149,8 +182,9 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
                 : this.hsToPosition(hue, saturation);
             return {
                 entityId,
-                name: stateObj.attributes.friendly_name ?? entityId,
+                name: this.getEntityName(entityConfig, stateObj.attributes.friendly_name ?? entityId),
                 icon: this.getEntityIcon(entityConfig, stateObj.attributes.icon),
+                showName: this.getEntityShowName(entityConfig),
                 hue,
                 saturation,
                 brightness,
@@ -734,7 +768,9 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
             : "color: rgba(255, 255, 255, 0.45);"}
                   ></ha-icon>
 
-                  <div class="name">${this.getShortName(marker.name)}</div>
+                  ${marker.showName
+            ? b `<div class="name">${this.getShortName(marker.name)}</div>`
+            : null}
 
                   <div class="brightness">
                     ${marker.state === "on"
@@ -766,18 +802,15 @@ MultiLightWheelCard.styles = i$3 `
     .wheel-control-row {
       display: grid;
       grid-template-columns: 76px 1fr 90px;
-      align-items: end;
+      align-items: center;
       gap: 18px;
       margin-bottom: 18px;
     }
 
     .mode-side {
       display: flex;
-      align-items: flex-end;
+      align-items: center;
       justify-content: center;
-      height: 260px;
-      padding-bottom: 8px;
-      box-sizing: border-box;
     }
 
     .mode-button {
@@ -866,11 +899,8 @@ MultiLightWheelCard.styles = i$3 `
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-end;
+      justify-content: center;
       min-width: 80px;
-      height: 260px;
-      padding-bottom: 8px;
-      box-sizing: border-box;
     }
 
     .brightness-value {
@@ -1145,8 +1175,6 @@ MultiLightWheelCard.styles = i$3 `
 
       .mode-side {
         order: 1;
-        height: auto;
-        padding-bottom: 0;
       }
 
       .wheel-wrapper {
@@ -1155,8 +1183,6 @@ MultiLightWheelCard.styles = i$3 `
 
       .brightness-side {
         order: 3;
-        height: auto;
-        padding-bottom: 0;
         flex-direction: column;
         gap: 6px;
       }
