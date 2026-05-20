@@ -5,16 +5,11 @@ import type { HomeAssistant } from "custom-card-helpers";
 interface MultiLightWheelCardEntityConfig {
   entity: string;
   icon?: string;
-  name?: string;
-  showName?: boolean | string;
-  show_name?: boolean | string;
 }
 
 interface MultiLightWheelCardConfig {
   type: string;
   title?: string;
-  showName?: boolean | string;
-  show_name?: boolean | string;
   entities: Array<string | MultiLightWheelCardEntityConfig>;
   icon?: string;
 }
@@ -25,7 +20,6 @@ interface Marker {
   entityId: string;
   name: string;
   icon: string;
-  showName: boolean;
   hue: number;
   saturation: number;
   brightness: number;
@@ -117,63 +111,6 @@ export class MultiLightWheelCard extends LitElement {
     return stateObjIcon ?? "mdi:lightbulb";
   }
 
-  private parseBooleanOption(
-    value: boolean | string | undefined,
-    defaultValue: boolean
-  ): boolean {
-    if (value === undefined) return defaultValue;
-
-    if (typeof value === "boolean") return value;
-
-    const normalizedValue = value.trim().toLowerCase();
-
-    if (
-      normalizedValue === "false" ||
-      normalizedValue === "0" ||
-      normalizedValue === "no"
-    ) {
-      return false;
-    }
-
-    if (
-      normalizedValue === "true" ||
-      normalizedValue === "1" ||
-      normalizedValue === "yes"
-    ) {
-      return true;
-    }
-
-    return defaultValue;
-  }
-
-  private getEntityName(
-    entityConfig: string | MultiLightWheelCardEntityConfig,
-    fallbackName: string
-  ): string {
-    if (typeof entityConfig !== "string" && entityConfig.name) {
-      return entityConfig.name;
-    }
-
-    return fallbackName;
-  }
-
-  private getEntityShowName(
-    entityConfig: string | MultiLightWheelCardEntityConfig
-  ): boolean {
-    if (typeof entityConfig !== "string") {
-      const entityShowName = entityConfig.showName ?? entityConfig.show_name;
-
-      if (entityShowName !== undefined) {
-        return this.parseBooleanOption(entityShowName, true);
-      }
-    }
-
-    return this.parseBooleanOption(
-      this.config.showName ?? this.config.show_name,
-      true
-    );
-  }
-
   private updateMarkersFromEntities(): void {
     if (!this.hass || !this.config?.entities) return;
 
@@ -221,12 +158,8 @@ export class MultiLightWheelCard extends LitElement {
 
         return {
           entityId,
-          name: this.getEntityName(
-            entityConfig,
-            stateObj.attributes.friendly_name ?? entityId
-          ),
+          name: stateObj.attributes.friendly_name ?? entityId,
           icon: this.getEntityIcon(entityConfig, stateObj.attributes.icon),
-          showName: this.getEntityShowName(entityConfig),
           hue,
           saturation,
           brightness,
@@ -1018,9 +951,7 @@ export class MultiLightWheelCard extends LitElement {
                       : "color: rgba(255, 255, 255, 0.45);"}
                   ></ha-icon>
 
-                  ${marker.showName
-                    ? html`<div class="name">${this.getShortName(marker.name)}</div>`
-                    : null}
+                  <div class="name">${this.getShortName(marker.name)}</div>
 
                   <div class="brightness">
                     ${marker.state === "on"
@@ -1053,15 +984,18 @@ export class MultiLightWheelCard extends LitElement {
     .wheel-control-row {
       display: grid;
       grid-template-columns: 76px 1fr 90px;
-      align-items: center;
+      align-items: end;
       gap: 18px;
       margin-bottom: 18px;
     }
 
     .mode-side {
       display: flex;
-      align-items: center;
+      align-items: flex-end;
       justify-content: center;
+      height: 260px;
+      padding-bottom: 8px;
+      box-sizing: border-box;
     }
 
     .mode-button {
@@ -1150,8 +1084,11 @@ export class MultiLightWheelCard extends LitElement {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-end;
       min-width: 80px;
+      height: 260px;
+      padding-bottom: 8px;
+      box-sizing: border-box;
     }
 
     .brightness-value {
@@ -1426,6 +1363,8 @@ export class MultiLightWheelCard extends LitElement {
 
       .mode-side {
         order: 1;
+        height: auto;
+        padding-bottom: 0;
       }
 
       .wheel-wrapper {
@@ -1434,6 +1373,8 @@ export class MultiLightWheelCard extends LitElement {
 
       .brightness-side {
         order: 3;
+        height: auto;
+        padding-bottom: 0;
         flex-direction: column;
         gap: 6px;
       }
