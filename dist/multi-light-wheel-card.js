@@ -120,6 +120,33 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         }
         return stateObjIcon ?? "mdi:lightbulb";
     }
+    isFalse(value) {
+        return value === false || value === "false";
+    }
+    isTrue(value) {
+        return value === true || value === "true";
+    }
+    shouldShowEntityName(entityConfig) {
+        if (typeof entityConfig !== "string") {
+            if (this.isFalse(entityConfig.showName) || this.isFalse(entityConfig.show_name)) {
+                return false;
+            }
+            if (this.isTrue(entityConfig.showName) || this.isTrue(entityConfig.show_name)) {
+                return true;
+            }
+        }
+        const globalValue = this.config?.showName ?? this.config?.show_name;
+        if (this.isFalse(globalValue)) {
+            return false;
+        }
+        return true;
+    }
+    getEntityDisplayName(entityConfig, fallbackName) {
+        if (typeof entityConfig !== "string" && entityConfig.name) {
+            return entityConfig.name;
+        }
+        return this.getShortName(fallbackName);
+    }
     updateMarkersFromEntities() {
         if (!this.hass || !this.config?.entities)
             return;
@@ -149,7 +176,7 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
                 : this.hsToPosition(hue, saturation);
             return {
                 entityId,
-                name: stateObj.attributes.friendly_name ?? entityId,
+                name: this.getEntityDisplayName(entityConfig, stateObj.attributes.friendly_name ?? entityId),
                 icon: this.getEntityIcon(entityConfig, stateObj.attributes.icon),
                 hue,
                 saturation,
@@ -163,6 +190,7 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
                     ? this.kelvinToCssColor(effectiveKelvin)
                     : `hsl(${hue}, ${saturation}%, 50%)`,
                 state: stateObj.state,
+                showName: this.shouldShowEntityName(entityConfig),
             };
         })
             .filter(Boolean);
@@ -760,7 +788,7 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
                     </div>
 
                     <div class="tile-text">
-                      <div class="name">${this.getShortName(marker.name)}</div>
+                      ${marker.showName ? b `<div class="name">${marker.name}</div>` : null}
                       <div class="brightness">
                         ${marker.state === "on"
             ? `${Math.round((marker.brightness / 255) * 100)} %`
