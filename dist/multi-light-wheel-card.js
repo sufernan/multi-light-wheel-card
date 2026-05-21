@@ -141,6 +141,36 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         }
         return true;
     }
+    shouldShowEntityIcon(entityConfig) {
+        if (typeof entityConfig !== "string") {
+            if (this.isFalse(entityConfig.showIcon) || this.isFalse(entityConfig.show_icon)) {
+                return false;
+            }
+            if (this.isTrue(entityConfig.showIcon) || this.isTrue(entityConfig.show_icon)) {
+                return true;
+            }
+        }
+        const globalValue = this.config?.showIcon ?? this.config?.show_icon;
+        if (this.isFalse(globalValue)) {
+            return false;
+        }
+        return true;
+    }
+    shouldShowEntityStatus(entityConfig) {
+        if (typeof entityConfig !== "string") {
+            if (this.isFalse(entityConfig.showStatus) || this.isFalse(entityConfig.show_status)) {
+                return false;
+            }
+            if (this.isTrue(entityConfig.showStatus) || this.isTrue(entityConfig.show_status)) {
+                return true;
+            }
+        }
+        const globalValue = this.config?.showStatus ?? this.config?.show_status;
+        if (this.isFalse(globalValue)) {
+            return false;
+        }
+        return true;
+    }
     getEntityDisplayName(entityConfig, fallbackName) {
         if (typeof entityConfig !== "string" && entityConfig.name) {
             return entityConfig.name;
@@ -191,6 +221,8 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
                     : `hsl(${hue}, ${saturation}%, 50%)`,
                 state: stateObj.state,
                 showName: this.shouldShowEntityName(entityConfig),
+                showIcon: this.shouldShowEntityIcon(entityConfig),
+                showStatus: this.shouldShowEntityStatus(entityConfig),
             };
         })
             .filter(Boolean);
@@ -779,21 +811,31 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         }}
                   @dblclick=${() => this.toggleLight(marker.entityId)}
                 >
-                  <div class="tile-main">
-                    <div class="tile-icon-wrap">
-                      <ha-icon
-                        class=${marker.state === "on" ? "tile-icon on" : "tile-icon off"}
-                        .icon=${marker.icon}
-                      ></ha-icon>
-                    </div>
+                  <div
+                    class=${marker.showIcon ? "tile-main" : "tile-main no-icon"}
+                  >
+                    ${marker.showIcon
+            ? b `
+                          <div class="tile-icon-wrap">
+                            <ha-icon
+                              class=${marker.state === "on" ? "tile-icon on" : "tile-icon off"}
+                              .icon=${marker.icon}
+                            ></ha-icon>
+                          </div>
+                        `
+            : null}
 
                     <div class="tile-text">
                       ${marker.showName ? b `<div class="name">${marker.name}</div>` : null}
-                      <div class="brightness">
-                        ${marker.state === "on"
-            ? `${Math.round((marker.brightness / 255) * 100)} %`
-            : "Off"}
-                      </div>
+                      ${marker.showStatus
+            ? b `
+                            <div class="brightness">
+                              ${marker.state === "on"
+                ? `${Math.round((marker.brightness / 255) * 100)} %`
+                : "Off"}
+                            </div>
+                          `
+            : null}
                     </div>
                   </div>
                 </button>
@@ -1151,6 +1193,15 @@ MultiLightWheelCard.styles = i$3 `
       width: 100%;
       height: 100%;
       min-width: 0;
+    }
+
+    .tile-main.no-icon {
+      justify-content: center;
+      text-align: center;
+    }
+
+    .tile-main.no-icon .tile-text {
+      align-items: center;
     }
 
     .tile-icon-wrap {

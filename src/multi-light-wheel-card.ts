@@ -8,6 +8,10 @@ interface MultiLightWheelCardEntityConfig {
   name?: string;
   showName?: boolean | string;
   show_name?: boolean | string;
+  showIcon?: boolean | string;
+  show_icon?: boolean | string;
+  showStatus?: boolean | string;
+  show_status?: boolean | string;
 }
 
 interface MultiLightWheelCardConfig {
@@ -17,6 +21,10 @@ interface MultiLightWheelCardConfig {
   show_title?: boolean | string;
   showName?: boolean | string;
   show_name?: boolean | string;
+  showIcon?: boolean | string;
+  show_icon?: boolean | string;
+  showStatus?: boolean | string;
+  show_status?: boolean | string;
   entities: Array<string | MultiLightWheelCardEntityConfig>;
   icon?: string;
   buttonColumns?: number | string;
@@ -41,6 +49,8 @@ interface Marker {
   color: string;
   state: string;
   showName: boolean;
+  showIcon: boolean;
+  showStatus: boolean;
 }
 
 interface MarkerGroup {
@@ -152,6 +162,50 @@ export class MultiLightWheelCard extends LitElement {
     return true;
   }
 
+  private shouldShowEntityIcon(
+    entityConfig: string | MultiLightWheelCardEntityConfig
+  ): boolean {
+    if (typeof entityConfig !== "string") {
+      if (this.isFalse(entityConfig.showIcon) || this.isFalse(entityConfig.show_icon)) {
+        return false;
+      }
+
+      if (this.isTrue(entityConfig.showIcon) || this.isTrue(entityConfig.show_icon)) {
+        return true;
+      }
+    }
+
+    const globalValue = this.config?.showIcon ?? this.config?.show_icon;
+
+    if (this.isFalse(globalValue)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private shouldShowEntityStatus(
+    entityConfig: string | MultiLightWheelCardEntityConfig
+  ): boolean {
+    if (typeof entityConfig !== "string") {
+      if (this.isFalse(entityConfig.showStatus) || this.isFalse(entityConfig.show_status)) {
+        return false;
+      }
+
+      if (this.isTrue(entityConfig.showStatus) || this.isTrue(entityConfig.show_status)) {
+        return true;
+      }
+    }
+
+    const globalValue = this.config?.showStatus ?? this.config?.show_status;
+
+    if (this.isFalse(globalValue)) {
+      return false;
+    }
+
+    return true;
+  }
+
   private getEntityDisplayName(
     entityConfig: string | MultiLightWheelCardEntityConfig,
     fallbackName: string
@@ -229,6 +283,8 @@ export class MultiLightWheelCard extends LitElement {
               : `hsl(${hue}, ${saturation}%, 50%)`,
           state: stateObj.state,
           showName: this.shouldShowEntityName(entityConfig),
+          showIcon: this.shouldShowEntityIcon(entityConfig),
+          showStatus: this.shouldShowEntityStatus(entityConfig),
         };
       })
       .filter(Boolean) as Marker[];
@@ -1031,21 +1087,31 @@ export class MultiLightWheelCard extends LitElement {
                   }}
                   @dblclick=${() => this.toggleLight(marker.entityId)}
                 >
-                  <div class="tile-main">
-                    <div class="tile-icon-wrap">
-                      <ha-icon
-                        class=${marker.state === "on" ? "tile-icon on" : "tile-icon off"}
-                        .icon=${marker.icon}
-                      ></ha-icon>
-                    </div>
+                  <div
+                    class=${marker.showIcon ? "tile-main" : "tile-main no-icon"}
+                  >
+                    ${marker.showIcon
+                      ? html`
+                          <div class="tile-icon-wrap">
+                            <ha-icon
+                              class=${marker.state === "on" ? "tile-icon on" : "tile-icon off"}
+                              .icon=${marker.icon}
+                            ></ha-icon>
+                          </div>
+                        `
+                      : null}
 
                     <div class="tile-text">
                       ${marker.showName ? html`<div class="name">${marker.name}</div>` : null}
-                      <div class="brightness">
-                        ${marker.state === "on"
-                          ? `${Math.round((marker.brightness / 255) * 100)} %`
-                          : "Off"}
-                      </div>
+                      ${marker.showStatus
+                        ? html`
+                            <div class="brightness">
+                              ${marker.state === "on"
+                                ? `${Math.round((marker.brightness / 255) * 100)} %`
+                                : "Off"}
+                            </div>
+                          `
+                        : null}
                     </div>
                   </div>
                 </button>
@@ -1404,6 +1470,15 @@ export class MultiLightWheelCard extends LitElement {
       width: 100%;
       height: 100%;
       min-width: 0;
+    }
+
+    .tile-main.no-icon {
+      justify-content: center;
+      text-align: center;
+    }
+
+    .tile-main.no-icon .tile-text {
+      align-items: center;
     }
 
     .tile-icon-wrap {
