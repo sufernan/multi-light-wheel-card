@@ -47,7 +47,6 @@ interface MarkerGroup {
   saturation: number;
   color: string;
   count: number;
-  allOff: boolean;
 }
 
 @customElement("multi-light-wheel-card")
@@ -282,27 +281,6 @@ export class MultiLightWheelCard extends LitElement {
     const groups: MarkerGroup[] = [];
 
     for (const marker of this.markers) {
-      const shouldIsolateMarker =
-        this.activeEntityIds.length === 1 &&
-        this.activeEntityIds[0] === marker.entityId;
-
-      if (shouldIsolateMarker) {
-        groups.push({
-          id: marker.entityId,
-          markers: [marker],
-          entityIds: [marker.entityId],
-          x: marker.x,
-          y: marker.y,
-          hue: marker.hue,
-          saturation: marker.saturation,
-          color: marker.color,
-          count: 1,
-          allOff: marker.state !== "on",
-        });
-
-        continue;
-      }
-
       const existingGroup = groups.find((group) => {
         const dx = group.x - marker.x;
         const dy = group.y - marker.y;
@@ -315,9 +293,6 @@ export class MultiLightWheelCard extends LitElement {
         existingGroup.markers.push(marker);
         existingGroup.entityIds.push(marker.entityId);
         existingGroup.count = existingGroup.markers.length;
-        existingGroup.allOff = existingGroup.markers.every(
-          (item) => item.state !== "on"
-        );
 
         existingGroup.x =
           existingGroup.markers.reduce((sum, item) => sum + item.x, 0) /
@@ -360,7 +335,6 @@ export class MultiLightWheelCard extends LitElement {
           saturation: marker.saturation,
           color: marker.color,
           count: 1,
-          allOff: marker.state !== "on",
         });
       }
     }
@@ -800,37 +774,38 @@ export class MultiLightWheelCard extends LitElement {
   private selectSingleEntity(entityId: string): void {
     this.activeEntityId = entityId;
     this.activeEntityIds = [entityId];
-    this.expandedGroupId = null;
     this.brightnessExpanded = false;
   }
 
-  private getMarkerGroupClass(group: MarkerGroup): string {
-    const classes = ["marker"];
+  private selectSingleEntityFromButton(entityId: string): void {
+    this.selectSingleEntity(entityId);
 
-    if (group.count > 1) {
+    const group = this.getMarkerGroups().find((markerGroup) =>
+      markerGroup.entityIds.includes(entityId)
+    );
+
+    this.expandedGroupId = group && group.count > 1 ? group.id : null;
+  }
+
+  private isGroupOff(group: MarkerGroup): boolean {
+    return group.markers.every((marker) => marker.state !== "on");
+  }
+
+  private getGroupMarkerClass(group: MarkerGroup): string {
+    const classes = ["marker"];
+    const isGroup = group.count > 1;
+    const isActive = this.isGroupActive(group);
+
+    if (isGroup) {
       classes.push("group");
     }
 
-    if (this.isGroupActive(group)) {
+    if (isActive) {
       classes.push("active");
     }
 
-    if (group.allOff) {
-      classes.push("off");
-    }
-
-    return classes.join(" ");
-  }
-
-  private getExpandedMarkerClass(marker: Marker): string {
-    const classes = ["marker", "expanded-single"];
-
-    if (this.isEntitySelected(marker.entityId)) {
-      classes.push("selected-single");
-    }
-
-    if (marker.state !== "on") {
-      classes.push("off");
+    if (isGroup && this.isGroupOff(group) && !isActive) {
+      classes.push("off-group");
     }
 
     return classes.join(" ");
@@ -914,7 +889,7 @@ export class MultiLightWheelCard extends LitElement {
 
                   return html`
                     <div
-                      class=${this.getMarkerGroupClass(group)}
+                      class=${this.getGroupMarkerClass(group)}
                       style="
                         left: ${group.x}px;
                         top: ${group.y}px;
@@ -951,7 +926,9 @@ export class MultiLightWheelCard extends LitElement {
 
                           return html`
                             <div
-                              class=${this.getExpandedMarkerClass(marker)}
+                              class=${this.isEntitySelected(marker.entityId)
+                                ? "marker expanded-single selected-single"
+                                : "marker expanded-single"}
                               style="
                                 left: ${position.x}px;
                                 top: ${position.y}px;
@@ -1027,7 +1004,7 @@ export class MultiLightWheelCard extends LitElement {
                       background: rgba(255, 255, 255, 0.08);
                     `}
                   @click=${() => {
-                    this.selectSingleEntity(marker.entityId);
+                    this.selectSingleEntityFromButton(marker.entityId);
                   }}
                   @dblclick=${() => this.toggleLight(marker.entityId)}
                 >
@@ -1254,7 +1231,7 @@ export class MultiLightWheelCard extends LitElement {
       height: 22px;
       border-radius: 50%;
       transform: translate(-50%, -50%);
-      border: 1.5px solid white;
+      border: 2px solid white;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
       cursor: grab;
       z-index: 2;
@@ -1263,7 +1240,7 @@ export class MultiLightWheelCard extends LitElement {
       align-items: center;
       justify-content: center;
       color: #222;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
       user-select: none;
     }
@@ -1280,38 +1257,29 @@ export class MultiLightWheelCard extends LitElement {
         0 6px 16px rgba(0, 0, 0, 0.5);
     }
 
-    .marker.off:not(.active):not(.expanded-single) {
-      width: 14px;
-      height: 14px;
-      border: 1px solid rgba(255, 255, 255, 0.72);
-      opacity: 0.72;
-      z-index: 1;
-      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.38);
-    }
-
     .marker.group {
-      width: 42px;
-      height: 42px;
-      border-radius: 50% 50% 50% 7px;
+      width: 46px;
+      height: 46px;
+      border-radius: 50% 50% 50% 8px;
       transform: translate(-50%, -50%) rotate(-45deg);
       font-size: 15px;
       z-index: 4;
       color: #1f1f1f;
     }
 
-    .marker.group.off:not(.active) {
-      width: 28px;
-      height: 28px;
-      border-radius: 50% 50% 50% 6px;
-      border: 1px solid rgba(255, 255, 255, 0.72);
-      font-size: 11px;
-      opacity: 0.78;
+    .marker.group.off-group {
+      width: 30px;
+      height: 30px;
+      font-size: 12px;
+      border-width: 1.5px;
+      opacity: 0.82;
       z-index: 3;
+      box-shadow: 0 2px 7px rgba(0, 0, 0, 0.36);
     }
 
     .marker.group.active {
-      width: 48px;
-      height: 48px;
+      width: 52px;
+      height: 52px;
       border: 3px solid white;
       z-index: 6;
     }
@@ -1326,18 +1294,11 @@ export class MultiLightWheelCard extends LitElement {
     .marker.expanded-single {
       width: 24px;
       height: 24px;
-      border: 1.5px solid white;
+      border: 2px solid white;
       z-index: 10;
       box-shadow:
         0 0 0 3px rgba(255, 255, 255, 0.25),
         0 4px 10px rgba(0, 0, 0, 0.45);
-    }
-
-    .marker.expanded-single.off:not(.selected-single) {
-      width: 18px;
-      height: 18px;
-      border: 1px solid rgba(255, 255, 255, 0.72);
-      opacity: 0.78;
     }
     
     .marker.expanded-single.selected-single {
@@ -1366,8 +1327,8 @@ export class MultiLightWheelCard extends LitElement {
     }
 
     .marker.group.active {
-      width: 48px;
-      height: 48px;
+      width: 56px;
+      height: 56px;
       border: 3px solid white;
       z-index: 8;
       box-shadow:
@@ -1386,22 +1347,22 @@ export class MultiLightWheelCard extends LitElement {
     .lights-row {
       display: grid;
       grid-template-columns: repeat(var(--button-columns, 2), minmax(0, 1fr));
-      grid-auto-rows: 56px;
+      grid-auto-rows: 64px;
       gap: 12px;
-      max-height: calc(56px * 5 + 48px);
+      max-height: calc(64px * 4 + 36px);
       overflow-y: auto;
       padding: 6px;
     }
 
     .light-tile {
       min-width: 0;
-      height: 56px;
+      height: 64px;
       border: none;
-      border-radius: 20px;
+      border-radius: 999px;
       background: rgba(255, 255, 255, 0.08);
       color: var(--primary-text-color);
       cursor: pointer;
-      padding: 6px 12px 6px 8px;
+      padding: 8px 14px 8px 8px;
       box-sizing: border-box;
       text-align: left;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
@@ -1426,21 +1387,21 @@ export class MultiLightWheelCard extends LitElement {
     .tile-main {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
       width: 100%;
       height: 100%;
       min-width: 0;
     }
 
     .tile-icon-wrap {
-      width: 38px;
-      height: 38px;
-      min-width: 38px;
+      width: 46px;
+      height: 46px;
+      min-width: 46px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--bubble-button-icon-background-color, rgba(0, 0, 0, 0.18));
+      background: rgba(0, 0, 0, 0.18);
       box-shadow:
         inset 0 0 0 1px rgba(255, 255, 255, 0.08),
         0 2px 7px rgba(0, 0, 0, 0.22);
@@ -1456,21 +1417,21 @@ export class MultiLightWheelCard extends LitElement {
     }
 
     .tile-icon {
-      --mdc-icon-size: 22px;
-      width: 22px;
-      height: 22px;
-      color: var(--icon-primary-color);
+      --mdc-icon-size: 24px;
+      width: 24px;
+      height: 24px;
+      color: white;
       filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
     }
 
     .tile-icon.on {
       opacity: 1;
-      color: var(--icon-primary-color);
+      color: white;
     }
 
     .tile-icon.off {
       opacity: 0.42;
-      color: var(--icon-primary-color);
+      color: rgba(255, 255, 255, 0.75);
       filter: none;
     }
 
@@ -1480,20 +1441,20 @@ export class MultiLightWheelCard extends LitElement {
       text-overflow: ellipsis;
       white-space: nowrap;
       font-weight: 700;
-      font-size: 12px;
+      font-size: 13px;
       letter-spacing: 0.12em;
     }
 
     .brightness {
-      font-size: 10px;
+      font-size: 11px;
       opacity: 0.82;
     }
 
     @media (max-width: 500px) {
       .lights-row {
         grid-template-columns: 1fr;
-        grid-auto-rows: 56px;
-        max-height: calc(56px * 6 + 60px);
+        grid-auto-rows: 62px;
+        max-height: calc(62px * 5 + 48px);
       }
 
       .wheel-control-row {
