@@ -564,29 +564,6 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
         this.activeEntityIds = [entityId];
         this.brightnessExpanded = false;
     }
-    selectSingleEntityFromButton(entityId) {
-        this.selectSingleEntity(entityId);
-        const group = this.getMarkerGroups().find((markerGroup) => markerGroup.entityIds.includes(entityId));
-        this.expandedGroupId = group && group.count > 1 ? group.id : null;
-    }
-    isGroupOff(group) {
-        return group.markers.every((marker) => marker.state !== "on");
-    }
-    getGroupMarkerClass(group) {
-        const classes = ["marker"];
-        const isGroup = group.count > 1;
-        const isActive = this.isGroupActive(group);
-        if (isGroup) {
-            classes.push("group");
-        }
-        if (isActive) {
-            classes.push("active");
-        }
-        if (isGroup && this.isGroupOff(group) && !isActive) {
-            classes.push("off-group");
-        }
-        return classes.join(" ");
-    }
     shouldShowTitle() {
         const rawValue = this.config.showTitle ?? this.config.show_title;
         if (rawValue === false || rawValue === "false") {
@@ -655,7 +632,13 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
             const isExpanded = this.expandedGroupId === group.id;
             return b `
                     <div
-                      class=${this.getGroupMarkerClass(group)}
+                      class=${this.isGroupActive(group)
+                ? group.count > 1
+                    ? "marker group active"
+                    : "marker active"
+                : group.count > 1
+                    ? "marker group"
+                    : "marker"}
                       style="
                         left: ${group.x}px;
                         top: ${group.y}px;
@@ -740,6 +723,8 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
             </div>
           </div>
 
+          <div class="wheel-buttons-separator" aria-hidden="true"></div>
+
           <div
             class="lights-row"
             style=${`--button-columns: ${this.getButtonColumns()};`}
@@ -764,7 +749,7 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
                       background: rgba(255, 255, 255, 0.08);
                     `}
                   @click=${() => {
-            this.selectSingleEntityFromButton(marker.entityId);
+            this.selectSingleEntity(marker.entityId);
         }}
                   @dblclick=${() => this.toggleLight(marker.entityId)}
                 >
@@ -794,11 +779,19 @@ let MultiLightWheelCard = class MultiLightWheelCard extends i {
     }
 };
 MultiLightWheelCard.styles = i$3 `
+    ha-card {
+      background: transparent;
+      box-shadow: none;
+      border-radius: var(--ha-card-border-radius, 20px);
+      overflow: visible;
+    }
+
     .card {
       padding: 16px;
-      background: var(--ha-card-background, var(--card-background-color));
+      background: transparent;
       color: var(--primary-text-color);
-      overflow: hidden;
+      border-radius: inherit;
+      overflow: visible;
     }
 
     .title {
@@ -1026,16 +1019,6 @@ MultiLightWheelCard.styles = i$3 `
       color: #1f1f1f;
     }
 
-    .marker.group.off-group {
-      width: 30px;
-      height: 30px;
-      font-size: 12px;
-      border-width: 1.5px;
-      opacity: 0.82;
-      z-index: 3;
-      box-shadow: 0 2px 7px rgba(0, 0, 0, 0.36);
-    }
-
     .marker.group.active {
       width: 52px;
       height: 52px;
@@ -1103,25 +1086,38 @@ MultiLightWheelCard.styles = i$3 `
       transform: translate(-50%, -50%) scale(1.12);
     }
 
+    .wheel-buttons-separator {
+      height: 1px;
+      margin: 2px 6px 14px;
+      border-radius: 999px;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        color-mix(in srgb, var(--divider-color, rgba(255, 255, 255, 0.22)) 80%, transparent),
+        transparent
+      );
+      opacity: 0.8;
+    }
+
     .lights-row {
       display: grid;
       grid-template-columns: repeat(var(--button-columns, 2), minmax(0, 1fr));
-      grid-auto-rows: 50px;
+      grid-auto-rows: 64px;
       gap: 12px;
-      max-height: calc(50px * 4 + 36px);
-      overflow-y: auto;
+      max-height: none;
+      overflow: visible;
       padding: 6px;
     }
 
     .light-tile {
       min-width: 0;
-      height: 50px;
+      height: 64px;
       border: none;
-      border-radius: 20px;
+      border-radius: 999px;
       background: rgba(255, 255, 255, 0.08);
       color: var(--primary-text-color);
       cursor: pointer;
-      padding: 6px 12px 6px 6px;
+      padding: 8px 14px 8px 8px;
       box-sizing: border-box;
       text-align: left;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
@@ -1153,14 +1149,14 @@ MultiLightWheelCard.styles = i$3 `
     }
 
     .tile-icon-wrap {
-      width: 38px;
-      height: 38px;
-      min-width: 38px;
+      width: 46px;
+      height: 46px;
+      min-width: 46px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--bubble-select-icon-background-color, rgba(0, 0, 0, 0.18));
+      background: rgba(0, 0, 0, 0.18);
       box-shadow:
         inset 0 0 0 1px rgba(255, 255, 255, 0.08),
         0 2px 7px rgba(0, 0, 0, 0.22);
@@ -1176,9 +1172,9 @@ MultiLightWheelCard.styles = i$3 `
     }
 
     .tile-icon {
-      --mdc-icon-size: 22px;
-      width: 22px;
-      height: 22px;
+      --mdc-icon-size: 24px;
+      width: 24px;
+      height: 24px;
       color: white;
       filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
     }
@@ -1212,8 +1208,9 @@ MultiLightWheelCard.styles = i$3 `
     @media (max-width: 500px) {
       .lights-row {
         grid-template-columns: 1fr;
-        grid-auto-rows: 50px;
-        max-height: calc(50px * 5 + 48px);
+        grid-auto-rows: 62px;
+        max-height: none;
+        overflow: visible;
       }
 
       .wheel-control-row {
