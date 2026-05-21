@@ -982,7 +982,7 @@ MultiLightWheelCard.styles = i$3 `
       align-items: center;
       justify-content: center;
       color: #222;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
       user-select: none;
     }
@@ -1079,22 +1079,22 @@ MultiLightWheelCard.styles = i$3 `
     .lights-row {
       display: grid;
       grid-template-columns: repeat(var(--button-columns, 2), minmax(0, 1fr));
-      grid-auto-rows: 100px;
+      grid-auto-rows: 56px;
       gap: 12px;
-      max-height: calc(100px * 4 + 36px);
+      max-height: calc(56px * 5 + 48px);
       overflow-y: auto;
       padding: 6px;
     }
 
     .light-tile {
       min-width: 0;
-      height: 100px;
+      height: 56px;
       border: none;
       border-radius: 20px;
       background: rgba(255, 255, 255, 0.08);
       color: var(--primary-text-color);
       cursor: pointer;
-      padding: 8px 14px 8px 8px;
+      padding: 6px 12px 6px 8px;
       box-sizing: border-box;
       text-align: left;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
@@ -1119,16 +1119,16 @@ MultiLightWheelCard.styles = i$3 `
     .tile-main {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       width: 100%;
       height: 100%;
       min-width: 0;
     }
 
     .tile-icon-wrap {
-      width: 46px;
-      height: 46px;
-      min-width: 46px;
+      width: 38px;
+      height: 38px;
+      min-width: 38px;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -1149,9 +1149,9 @@ MultiLightWheelCard.styles = i$3 `
     }
 
     .tile-icon {
-      --mdc-icon-size: 24px;
-      width: 24px;
-      height: 24px;
+      --mdc-icon-size: 22px;
+      width: 22px;
+      height: 22px;
       color: white;
       filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
     }
@@ -1173,20 +1173,20 @@ MultiLightWheelCard.styles = i$3 `
       text-overflow: ellipsis;
       white-space: nowrap;
       font-weight: 700;
-      font-size: 13px;
+      font-size: 12px;
       letter-spacing: 0.12em;
     }
 
     .brightness {
-      font-size: 11px;
+      font-size: 10px;
       opacity: 0.82;
     }
 
     @media (max-width: 500px) {
       .lights-row {
         grid-template-columns: 1fr;
-        grid-auto-rows: 100px;
-        max-height: calc(100px * 5 + 48px);
+        grid-auto-rows: 56px;
+        max-height: calc(56px * 6 + 60px);
       }
 
       .wheel-control-row {
