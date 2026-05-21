@@ -47,6 +47,7 @@ interface MarkerGroup {
   saturation: number;
   color: string;
   count: number;
+  allOff: boolean;
 }
 
 @customElement("multi-light-wheel-card")
@@ -281,6 +282,27 @@ export class MultiLightWheelCard extends LitElement {
     const groups: MarkerGroup[] = [];
 
     for (const marker of this.markers) {
+      const shouldIsolateMarker =
+        this.activeEntityIds.length === 1 &&
+        this.activeEntityIds[0] === marker.entityId;
+
+      if (shouldIsolateMarker) {
+        groups.push({
+          id: marker.entityId,
+          markers: [marker],
+          entityIds: [marker.entityId],
+          x: marker.x,
+          y: marker.y,
+          hue: marker.hue,
+          saturation: marker.saturation,
+          color: marker.color,
+          count: 1,
+          allOff: marker.state !== "on",
+        });
+
+        continue;
+      }
+
       const existingGroup = groups.find((group) => {
         const dx = group.x - marker.x;
         const dy = group.y - marker.y;
@@ -293,6 +315,9 @@ export class MultiLightWheelCard extends LitElement {
         existingGroup.markers.push(marker);
         existingGroup.entityIds.push(marker.entityId);
         existingGroup.count = existingGroup.markers.length;
+        existingGroup.allOff = existingGroup.markers.every(
+          (item) => item.state !== "on"
+        );
 
         existingGroup.x =
           existingGroup.markers.reduce((sum, item) => sum + item.x, 0) /
@@ -335,6 +360,7 @@ export class MultiLightWheelCard extends LitElement {
           saturation: marker.saturation,
           color: marker.color,
           count: 1,
+          allOff: marker.state !== "on",
         });
       }
     }
@@ -774,7 +800,40 @@ export class MultiLightWheelCard extends LitElement {
   private selectSingleEntity(entityId: string): void {
     this.activeEntityId = entityId;
     this.activeEntityIds = [entityId];
+    this.expandedGroupId = null;
     this.brightnessExpanded = false;
+  }
+
+  private getMarkerGroupClass(group: MarkerGroup): string {
+    const classes = ["marker"];
+
+    if (group.count > 1) {
+      classes.push("group");
+    }
+
+    if (this.isGroupActive(group)) {
+      classes.push("active");
+    }
+
+    if (group.allOff) {
+      classes.push("off");
+    }
+
+    return classes.join(" ");
+  }
+
+  private getExpandedMarkerClass(marker: Marker): string {
+    const classes = ["marker", "expanded-single"];
+
+    if (this.isEntitySelected(marker.entityId)) {
+      classes.push("selected-single");
+    }
+
+    if (marker.state !== "on") {
+      classes.push("off");
+    }
+
+    return classes.join(" ");
   }
 
   private shouldShowTitle(): boolean {
@@ -855,13 +914,7 @@ export class MultiLightWheelCard extends LitElement {
 
                   return html`
                     <div
-                      class=${this.isGroupActive(group)
-                        ? group.count > 1
-                          ? "marker group active"
-                          : "marker active"
-                        : group.count > 1
-                          ? "marker group"
-                          : "marker"}
+                      class=${this.getMarkerGroupClass(group)}
                       style="
                         left: ${group.x}px;
                         top: ${group.y}px;
@@ -898,9 +951,7 @@ export class MultiLightWheelCard extends LitElement {
 
                           return html`
                             <div
-                              class=${this.isEntitySelected(marker.entityId)
-                                ? "marker expanded-single selected-single"
-                                : "marker expanded-single"}
+                              class=${this.getExpandedMarkerClass(marker)}
                               style="
                                 left: ${position.x}px;
                                 top: ${position.y}px;
@@ -1229,6 +1280,15 @@ export class MultiLightWheelCard extends LitElement {
         0 6px 16px rgba(0, 0, 0, 0.5);
     }
 
+    .marker.off:not(.active):not(.expanded-single) {
+      width: 14px;
+      height: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      opacity: 0.72;
+      z-index: 1;
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.38);
+    }
+
     .marker.group {
       width: 42px;
       height: 42px;
@@ -1237,6 +1297,16 @@ export class MultiLightWheelCard extends LitElement {
       font-size: 15px;
       z-index: 4;
       color: #1f1f1f;
+    }
+
+    .marker.group.off:not(.active) {
+      width: 28px;
+      height: 28px;
+      border-radius: 50% 50% 50% 6px;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      font-size: 11px;
+      opacity: 0.78;
+      z-index: 3;
     }
 
     .marker.group.active {
@@ -1261,6 +1331,13 @@ export class MultiLightWheelCard extends LitElement {
       box-shadow:
         0 0 0 3px rgba(255, 255, 255, 0.25),
         0 4px 10px rgba(0, 0, 0, 0.45);
+    }
+
+    .marker.expanded-single.off:not(.selected-single) {
+      width: 18px;
+      height: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      opacity: 0.78;
     }
     
     .marker.expanded-single.selected-single {
@@ -1363,7 +1440,7 @@ export class MultiLightWheelCard extends LitElement {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(0, 0, 0, 0.18);
+      background: var(--bubble-button-icon-background-color, rgba(0, 0, 0, 0.18));
       box-shadow:
         inset 0 0 0 1px rgba(255, 255, 255, 0.08),
         0 2px 7px rgba(0, 0, 0, 0.22);
@@ -1382,18 +1459,18 @@ export class MultiLightWheelCard extends LitElement {
       --mdc-icon-size: 22px;
       width: 22px;
       height: 22px;
-      color: white;
+      color: var(--icon-primary-color);
       filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
     }
 
     .tile-icon.on {
       opacity: 1;
-      color: white;
+      color: var(--icon-primary-color);
     }
 
     .tile-icon.off {
       opacity: 0.42;
-      color: rgba(255, 255, 255, 0.75);
+      color: var(--icon-primary-color);
       filter: none;
     }
 
