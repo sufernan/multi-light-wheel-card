@@ -1106,22 +1106,22 @@ MultiLightWheelCard.styles = i$3 `
     .lights-row {
       display: grid;
       grid-template-columns: repeat(var(--button-columns, 2), minmax(0, 1fr));
-      grid-auto-rows: 64px;
+      grid-auto-rows: 50px;
       gap: 12px;
-      max-height: calc(64px * 4 + 36px);
+      max-height: calc(50px * 4 + 36px);
       overflow-y: auto;
       padding: 6px;
     }
 
     .light-tile {
       min-width: 0;
-      height: 64px;
+      height: 50px;
       border: none;
-      border-radius: 999px;
+      border-radius: 20px;
       background: rgba(255, 255, 255, 0.08);
       color: var(--primary-text-color);
       cursor: pointer;
-      padding: 8px 14px 8px 8px;
+      padding: 6px 12px 6px 6px;
       box-sizing: border-box;
       text-align: left;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
@@ -1153,14 +1153,14 @@ MultiLightWheelCard.styles = i$3 `
     }
 
     .tile-icon-wrap {
-      width: 46px;
-      height: 46px;
-      min-width: 46px;
+      width: 38px;
+      height: 38px;
+      min-width: 38px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(0, 0, 0, 0.18);
+      background: var(--bubble-select-icon-background-color, rgba(0, 0, 0, 0.18));
       box-shadow:
         inset 0 0 0 1px rgba(255, 255, 255, 0.08),
         0 2px 7px rgba(0, 0, 0, 0.22);
@@ -1176,9 +1176,9 @@ MultiLightWheelCard.styles = i$3 `
     }
 
     .tile-icon {
-      --mdc-icon-size: 24px;
-      width: 24px;
-      height: 24px;
+      --mdc-icon-size: 22px;
+      width: 22px;
+      height: 22px;
       color: white;
       filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
     }
@@ -1212,8 +1212,8 @@ MultiLightWheelCard.styles = i$3 `
     @media (max-width: 500px) {
       .lights-row {
         grid-template-columns: 1fr;
-        grid-auto-rows: 62px;
-        max-height: calc(62px * 5 + 48px);
+        grid-auto-rows: 50px;
+        max-height: calc(50px * 5 + 48px);
       }
 
       .wheel-control-row {
