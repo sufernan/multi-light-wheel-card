@@ -5,13 +5,6 @@ import type { HomeAssistant } from "custom-card-helpers";
 interface MultiLightWheelCardEntityConfig {
   entity: string;
   icon?: string;
-  name?: string;
-  showName?: boolean | string;
-  show_name?: boolean | string;
-  showIcon?: boolean | string;
-  show_icon?: boolean | string;
-  showStatus?: boolean | string;
-  show_status?: boolean | string;
 }
 
 interface MultiLightWheelCardConfig {
@@ -19,12 +12,6 @@ interface MultiLightWheelCardConfig {
   title?: string;
   showTitle?: boolean | string;
   show_title?: boolean | string;
-  showName?: boolean | string;
-  show_name?: boolean | string;
-  showIcon?: boolean | string;
-  show_icon?: boolean | string;
-  showStatus?: boolean | string;
-  show_status?: boolean | string;
   entities: Array<string | MultiLightWheelCardEntityConfig>;
   icon?: string;
   buttonColumns?: number | string;
@@ -48,9 +35,6 @@ interface Marker {
   y: number;
   color: string;
   state: string;
-  showName: boolean;
-  showIcon: boolean;
-  showStatus: boolean;
 }
 
 interface MarkerGroup {
@@ -132,91 +116,6 @@ export class MultiLightWheelCard extends LitElement {
     return stateObjIcon ?? "mdi:lightbulb";
   }
 
-  private isFalse(value: unknown): boolean {
-    return value === false || value === "false";
-  }
-
-  private isTrue(value: unknown): boolean {
-    return value === true || value === "true";
-  }
-
-  private shouldShowEntityName(
-    entityConfig: string | MultiLightWheelCardEntityConfig
-  ): boolean {
-    if (typeof entityConfig !== "string") {
-      if (this.isFalse(entityConfig.showName) || this.isFalse(entityConfig.show_name)) {
-        return false;
-      }
-
-      if (this.isTrue(entityConfig.showName) || this.isTrue(entityConfig.show_name)) {
-        return true;
-      }
-    }
-
-    const globalValue = this.config?.showName ?? this.config?.show_name;
-
-    if (this.isFalse(globalValue)) {
-      return false;
-    }
-
-    return true;
-  }
-
-  private shouldShowEntityIcon(
-    entityConfig: string | MultiLightWheelCardEntityConfig
-  ): boolean {
-    if (typeof entityConfig !== "string") {
-      if (this.isFalse(entityConfig.showIcon) || this.isFalse(entityConfig.show_icon)) {
-        return false;
-      }
-
-      if (this.isTrue(entityConfig.showIcon) || this.isTrue(entityConfig.show_icon)) {
-        return true;
-      }
-    }
-
-    const globalValue = this.config?.showIcon ?? this.config?.show_icon;
-
-    if (this.isFalse(globalValue)) {
-      return false;
-    }
-
-    return true;
-  }
-
-  private shouldShowEntityStatus(
-    entityConfig: string | MultiLightWheelCardEntityConfig
-  ): boolean {
-    if (typeof entityConfig !== "string") {
-      if (this.isFalse(entityConfig.showStatus) || this.isFalse(entityConfig.show_status)) {
-        return false;
-      }
-
-      if (this.isTrue(entityConfig.showStatus) || this.isTrue(entityConfig.show_status)) {
-        return true;
-      }
-    }
-
-    const globalValue = this.config?.showStatus ?? this.config?.show_status;
-
-    if (this.isFalse(globalValue)) {
-      return false;
-    }
-
-    return true;
-  }
-
-  private getEntityDisplayName(
-    entityConfig: string | MultiLightWheelCardEntityConfig,
-    fallbackName: string
-  ): string {
-    if (typeof entityConfig !== "string" && entityConfig.name) {
-      return entityConfig.name;
-    }
-
-    return this.getShortName(fallbackName);
-  }
-
   private updateMarkersFromEntities(): void {
     if (!this.hass || !this.config?.entities) return;
 
@@ -264,10 +163,7 @@ export class MultiLightWheelCard extends LitElement {
 
         return {
           entityId,
-          name: this.getEntityDisplayName(
-            entityConfig,
-            stateObj.attributes.friendly_name ?? entityId
-          ),
+          name: stateObj.attributes.friendly_name ?? entityId,
           icon: this.getEntityIcon(entityConfig, stateObj.attributes.icon),
           hue,
           saturation,
@@ -282,9 +178,6 @@ export class MultiLightWheelCard extends LitElement {
               ? this.kelvinToCssColor(effectiveKelvin)
               : `hsl(${hue}, ${saturation}%, 50%)`,
           state: stateObj.state,
-          showName: this.shouldShowEntityName(entityConfig),
-          showIcon: this.shouldShowEntityIcon(entityConfig),
-          showStatus: this.shouldShowEntityStatus(entityConfig),
         };
       })
       .filter(Boolean) as Marker[];
@@ -1087,31 +980,21 @@ export class MultiLightWheelCard extends LitElement {
                   }}
                   @dblclick=${() => this.toggleLight(marker.entityId)}
                 >
-                  <div
-                    class=${marker.showIcon ? "tile-main" : "tile-main no-icon"}
-                  >
-                    ${marker.showIcon
-                      ? html`
-                          <div class="tile-icon-wrap">
-                            <ha-icon
-                              class=${marker.state === "on" ? "tile-icon on" : "tile-icon off"}
-                              .icon=${marker.icon}
-                            ></ha-icon>
-                          </div>
-                        `
-                      : null}
+                  <div class="tile-main">
+                    <div class="tile-icon-wrap">
+                      <ha-icon
+                        class=${marker.state === "on" ? "tile-icon on" : "tile-icon off"}
+                        .icon=${marker.icon}
+                      ></ha-icon>
+                    </div>
 
                     <div class="tile-text">
-                      ${marker.showName ? html`<div class="name">${marker.name}</div>` : null}
-                      ${marker.showStatus
-                        ? html`
-                            <div class="brightness">
-                              ${marker.state === "on"
-                                ? `${Math.round((marker.brightness / 255) * 100)} %`
-                                : "Off"}
-                            </div>
-                          `
-                        : null}
+                      <div class="name">${this.getShortName(marker.name)}</div>
+                      <div class="brightness">
+                        ${marker.state === "on"
+                          ? `${Math.round((marker.brightness / 255) * 100)} %`
+                          : "Off"}
+                      </div>
                     </div>
                   </div>
                 </button>
@@ -1320,7 +1203,7 @@ export class MultiLightWheelCard extends LitElement {
       height: 22px;
       border-radius: 50%;
       transform: translate(-50%, -50%);
-      border: 2px solid white;
+      border: 1.5px solid white;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
       cursor: grab;
       z-index: 2;
@@ -1347,9 +1230,9 @@ export class MultiLightWheelCard extends LitElement {
     }
 
     .marker.group {
-      width: 46px;
-      height: 46px;
-      border-radius: 50% 50% 50% 8px;
+      width: 42px;
+      height: 42px;
+      border-radius: 50% 50% 50% 7px;
       transform: translate(-50%, -50%) rotate(-45deg);
       font-size: 15px;
       z-index: 4;
@@ -1357,8 +1240,8 @@ export class MultiLightWheelCard extends LitElement {
     }
 
     .marker.group.active {
-      width: 52px;
-      height: 52px;
+      width: 48px;
+      height: 48px;
       border: 3px solid white;
       z-index: 6;
     }
@@ -1373,7 +1256,7 @@ export class MultiLightWheelCard extends LitElement {
     .marker.expanded-single {
       width: 24px;
       height: 24px;
-      border: 2px solid white;
+      border: 1.5px solid white;
       z-index: 10;
       box-shadow:
         0 0 0 3px rgba(255, 255, 255, 0.25),
@@ -1406,8 +1289,8 @@ export class MultiLightWheelCard extends LitElement {
     }
 
     .marker.group.active {
-      width: 56px;
-      height: 56px;
+      width: 48px;
+      height: 48px;
       border: 3px solid white;
       z-index: 8;
       box-shadow:
@@ -1426,18 +1309,18 @@ export class MultiLightWheelCard extends LitElement {
     .lights-row {
       display: grid;
       grid-template-columns: repeat(var(--button-columns, 2), minmax(0, 1fr));
-      grid-auto-rows: 64px;
+      grid-auto-rows: 100px;
       gap: 12px;
-      max-height: calc(64px * 4 + 36px);
+      max-height: calc(100px * 4 + 36px);
       overflow-y: auto;
       padding: 6px;
     }
 
     .light-tile {
       min-width: 0;
-      height: 64px;
+      height: 100px;
       border: none;
-      border-radius: 999px;
+      border-radius: 20px;
       background: rgba(255, 255, 255, 0.08);
       color: var(--primary-text-color);
       cursor: pointer;
@@ -1470,15 +1353,6 @@ export class MultiLightWheelCard extends LitElement {
       width: 100%;
       height: 100%;
       min-width: 0;
-    }
-
-    .tile-main.no-icon {
-      justify-content: center;
-      text-align: center;
-    }
-
-    .tile-main.no-icon .tile-text {
-      align-items: center;
     }
 
     .tile-icon-wrap {
@@ -1541,8 +1415,8 @@ export class MultiLightWheelCard extends LitElement {
     @media (max-width: 500px) {
       .lights-row {
         grid-template-columns: 1fr;
-        grid-auto-rows: 62px;
-        max-height: calc(62px * 5 + 48px);
+        grid-auto-rows: 100px;
+        max-height: calc(100px * 5 + 48px);
       }
 
       .wheel-control-row {
